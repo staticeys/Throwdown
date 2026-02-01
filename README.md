@@ -18,20 +18,6 @@ A snappy canvas / whiteboard application for throwing down notes, links, and ide
 - **Light/dark theme** toggle
 - **Keyboard shortcuts** for efficient navigation
 
-## Development
-
-```sh
-npm install
-npm run dev
-```
-
-## Building
-
-```sh
-npm run build
-npm run preview
-```
-
 ## License
 
 MIT
