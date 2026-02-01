@@ -27,3 +27,6 @@ Documents/
 
 # VS Code workspace
 *.code-workspace
+
+# Claude Code
+.claude/
