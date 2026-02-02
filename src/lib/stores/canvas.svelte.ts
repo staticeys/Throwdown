@@ -52,6 +52,9 @@ class CanvasStore {
 	tagFilters = $state<string[]>([]);
 	searchTerm = $state('');
 
+	// Text editing state (for contextual UI hints)
+	isEditingText = $state(false);
+
 	// Auto-save instance
 	private autoSave = createAutoSave(500);
 
@@ -689,6 +692,11 @@ class CanvasStore {
 	clearFilters(): void {
 		this.tagFilters = [];
 		this.searchTerm = '';
+	}
+
+	// Text editing state operations
+	setEditingText(editing: boolean): void {
+		this.isEditingText = editing;
 	}
 }
 
