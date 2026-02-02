@@ -2,6 +2,9 @@
 
 import type { CanvasNode } from '$lib/types/canvas';
 
+// Only consider nodes within this distance (in canvas pixels) for alignment
+const ALIGNMENT_PROXIMITY = 500;
+
 export interface AlignmentGuides {
 	vertical: number[];   // x-positions for vertical guide lines
 	horizontal: number[]; // y-positions for horizontal guide lines
@@ -20,6 +23,24 @@ interface NodeBounds {
 	bottom: number;
 	centerX: number;
 	centerY: number;
+}
+
+// Check if two nodes are within proximity threshold
+function isWithinProximity(
+	node1: { x: number; y: number; width: number; height: number },
+	node2: { x: number; y: number; width: number; height: number }
+): boolean {
+	// Calculate the gap between bounding boxes on each axis
+	const gapX = Math.max(0,
+		Math.max(node1.x, node2.x) - Math.min(node1.x + node1.width, node2.x + node2.width)
+	);
+	const gapY = Math.max(0,
+		Math.max(node1.y, node2.y) - Math.min(node1.y + node1.height, node2.y + node2.height)
+	);
+
+	// Use Euclidean distance between closest edges
+	const distance = Math.sqrt(gapX * gapX + gapY * gapY);
+	return distance <= ALIGNMENT_PROXIMITY;
 }
 
 // Get bounds for a node
@@ -50,13 +71,20 @@ export function calculateAlignments(
 		return result;
 	}
 
+	// Filter to only nearby nodes for performance and cleaner UX
+	const nearbyNodes = otherNodes.filter(node => isWithinProximity(draggingNode, node));
+
+	if (nearbyNodes.length === 0) {
+		return result;
+	}
+
 	const dragging = getNodeBounds(draggingNode);
 
 	// Track closest snap distances
 	let closestSnapDistX = threshold + 1;
 	let closestSnapDistY = threshold + 1;
 
-	for (const other of otherNodes) {
+	for (const other of nearbyNodes) {
 		const target = getNodeBounds(other);
 
 		// Vertical alignments (x-axis) - creates vertical guide lines

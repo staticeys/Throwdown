@@ -44,9 +44,11 @@
 		position: absolute;
 		top: 0;
 		left: 0;
-		width: 100%;
-		height: 100%;
+		/* Explicit 1px dimensions for Chromium compatibility */
+		width: 1px;
+		height: 1px;
 		pointer-events: none;
+		overflow: visible;
 		z-index: 1000;
 	}
 
