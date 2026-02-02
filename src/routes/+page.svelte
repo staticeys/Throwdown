@@ -11,6 +11,7 @@
 	import Toolbar from '$lib/components/ui/toolbar.svelte';
 	import ThemeToggle from '$lib/components/ui/theme-toggle.svelte';
 	import CanvasTabs from '$lib/components/ui/canvas-tabs.svelte';
+	import TipsOverlay from '$lib/components/ui/tips-overlay.svelte';
 	import type { ContextMenuItem } from '$lib/components/ui/context-menu.svelte';
 	import { isTextNode, isLinkNode, isGroupNode } from '$lib/types/canvas';
 	import type { TextNode, LinkNode, GroupNode } from '$lib/types/canvas';
@@ -416,6 +417,8 @@
 		</div>
 	</div>
 {/if}
+
+<TipsOverlay />
 
 <style>
 	.app-container {

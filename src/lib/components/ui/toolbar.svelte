@@ -20,10 +20,13 @@
 	// Local state
 	let showHotkeys = $state(false);
 	let showMarkdownHelp = $state(false);
+	let showAddMenu = $state(false);
 
-	// Derived state
-	let hasSelection = $derived(canvasStore.selection.length > 0);
-	let hasMultipleSelected = $derived(canvasStore.selection.length > 1);
+	// Handle add menu item click
+	function handleAddMenuItem(action: () => void) {
+		action();
+		showAddMenu = false;
+	}
 
 	// Handle export
 	function handleExport() {
@@ -43,51 +46,35 @@
 </script>
 
 <div class="toolbar">
-	<!-- Add tools -->
-	<div class="toolbar-group">
+	<!-- Add dropdown -->
+	<div class="toolbar-group add-menu-container">
 		<button
 			class="toolbar-btn"
-			onclick={onAddText}
-			title="Add Text (double-click canvas)"
+			class:active={showAddMenu}
+			onclick={() => (showAddMenu = !showAddMenu)}
+			title="Add Node"
 		>
-			{icons.text}
+			{icons.add}
 		</button>
-		<button
-			class="toolbar-btn"
-			onclick={onAddLink}
-			title="Add Link"
-		>
-			{icons.link}
-		</button>
-		<button
-			class="toolbar-btn"
-			onclick={onAddGroup}
-			title="Add Group"
-		>
-			{icons.canvas}
-		</button>
-	</div>
-
-	<div class="toolbar-divider"></div>
-
-	<!-- Selection actions -->
-	<div class="toolbar-group">
-		<button
-			class="toolbar-btn"
-			onclick={() => canvasStore.linkSelectedNodes()}
-			disabled={!hasMultipleSelected}
-			title="Link Selected (L)"
-		>
-			{icons.arrow}
-		</button>
-		<button
-			class="toolbar-btn destructive"
-			onclick={() => canvasStore.deleteSelectedNodes()}
-			disabled={!hasSelection}
-			title="Delete Selected (Delete)"
-		>
-			{icons.trash}
-		</button>
+		{#if showAddMenu}
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<div class="add-menu-backdrop" onclick={() => (showAddMenu = false)}></div>
+			<div class="add-menu">
+				<button class="add-menu-item" onclick={() => handleAddMenuItem(onAddText)}>
+					<span class="add-menu-icon">{icons.text}</span>
+					<span>Text</span>
+				</button>
+				<button class="add-menu-item" onclick={() => handleAddMenuItem(onAddLink)}>
+					<span class="add-menu-icon">{icons.link}</span>
+					<span>Link</span>
+				</button>
+				<button class="add-menu-item" onclick={() => handleAddMenuItem(onAddGroup)}>
+					<span class="add-menu-icon">{icons.canvas}</span>
+					<span>Group</span>
+				</button>
+			</div>
+		{/if}
 	</div>
 
 	<div class="toolbar-divider"></div>
@@ -191,10 +178,6 @@
 		opacity: 0.5;
 	}
 
-	.toolbar-btn.destructive:hover:not(:disabled) {
-		color: var(--destructive);
-	}
-
 	.toolbar-divider {
 		width: 1px;
 		height: 20px;
@@ -204,5 +187,60 @@
 
 	.toolbar-spacer {
 		flex: 1;
+	}
+
+	/* Add menu dropdown */
+	.add-menu-container {
+		position: relative;
+	}
+
+	.toolbar-btn.active {
+		color: var(--text-primary);
+		background-color: var(--bg-elevated);
+	}
+
+	.add-menu-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 99;
+	}
+
+	.add-menu {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		margin-top: var(--space-1);
+		min-width: 120px;
+		background: var(--bg-surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-md);
+		z-index: 100;
+		overflow: hidden;
+	}
+
+	.add-menu-item {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		width: 100%;
+		padding: var(--space-2) var(--space-3);
+		font-family: var(--font-sans);
+		font-size: 13px;
+		color: var(--text-primary);
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		transition: background-color var(--transition-fast);
+	}
+
+	.add-menu-item:hover {
+		background-color: var(--bg-elevated);
+	}
+
+	.add-menu-icon {
+		width: 16px;
+		text-align: center;
+		color: var(--text-secondary);
 	}
 </style>

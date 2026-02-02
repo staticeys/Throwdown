@@ -27,6 +27,7 @@
 		draftText = node.text;
 		editSessionKey++;
 		isEditing = true;
+		canvasStore.setEditingText(true);
 		// Focus after DOM update
 		requestAnimationFrame(() => {
 			if (editableEl) {
@@ -50,6 +51,7 @@
 			canvasStore.updateNode(node.id, { text: draftText });
 		}
 		isEditing = false;
+		canvasStore.setEditingText(false);
 	}
 
 	// Handle input - DO NOT update store while typing to avoid re-renders
