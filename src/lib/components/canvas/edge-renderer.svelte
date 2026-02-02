@@ -288,8 +288,10 @@
 		position: absolute;
 		top: 0;
 		left: 0;
-		width: 100%;
-		height: 100%;
+		/* Use explicit dimensions instead of 100% since parent has no size.
+		   Chromium won't render SVG content from a 0x0 element even with overflow:visible */
+		width: 1px;
+		height: 1px;
 		pointer-events: none;
 		overflow: visible;
 	}
