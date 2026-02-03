@@ -49,15 +49,6 @@ export interface CanvasEdge {
 	label?: string;
 }
 
-// Node lock - connects two node edges together (extension)
-export interface NodeLock {
-	id: string;
-	nodeA: string;
-	sideA: Side;
-	nodeB: string;
-	sideB: Side;
-}
-
 // Viewport state (extension)
 export interface Viewport {
 	x: number;
@@ -79,7 +70,6 @@ export interface CanvasFile {
 	// Extensions prefixed with x- to avoid spec conflicts
 	'x-viewport'?: Viewport;
 	'x-metadata'?: CanvasMetadata;
-	'x-locks'?: NodeLock[];
 }
 
 // App-level state for managing multiple canvases

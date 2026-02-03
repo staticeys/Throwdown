@@ -9,15 +9,12 @@
 	// Renderable node IDs (visible + ghost nodes)
 	let renderableNodeIds = $derived(new Set(canvasStore.renderableNodes.map((n) => n.id)));
 
-	// Only show edges where both nodes are rendered (visible or ghost)
+	// Only show edges where both nodes are rendered
 	let visibleEdges = $derived(
 		canvasStore.edges.filter(
 			(edge) => renderableNodeIds.has(edge.fromNode) && renderableNodeIds.has(edge.toNode)
 		)
 	);
-
-	// Ghost node IDs for styling edges to ghost nodes
-	let ghostNodeIds = $derived(canvasStore.ghostNodeIds);
 
 	// Track hovered edge for delete UI
 	let hoveredEdgeId = $state<string | null>(null);
@@ -190,7 +187,6 @@
 		{@const color = getEdgeColor(edge)}
 		{@const midpoint = getEdgeMidpoint(edge)}
 		{@const isHovered = hoveredEdgeId === edge.id}
-		{@const isGhostEdge = ghostNodeIds.has(edge.fromNode) || ghostNodeIds.has(edge.toNode)}
 		{#if path}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -221,16 +217,16 @@
 					stroke={color}
 					stroke-width="2"
 					stroke-linecap="round"
-					stroke-dasharray={isGhostEdge ? '4 4' : 'none'}
+					stroke-dasharray="none"
 					class="edge-path"
-					opacity={isGhostEdge ? 0.35 : isLinkMode && !isHovered ? 0.4 : 1}
+					opacity={isLinkMode && !isHovered ? 0.4 : 1}
 				/>
 
 				<!-- Arrow at end -->
 				{#if hasArrowEnd(edge)}
 					{@const transform = getArrowTransform(edge)}
 					{#if transform}
-						<g {transform} opacity={isGhostEdge ? 0.35 : isLinkMode && !isHovered ? 0.4 : 1}>
+						<g {transform} opacity={isLinkMode && !isHovered ? 0.4 : 1}>
 							<path
 								d="M -8 -4 L 0 0 L -8 4"
 								fill="none"
