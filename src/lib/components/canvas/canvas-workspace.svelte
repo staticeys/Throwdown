@@ -165,8 +165,29 @@
 		}
 	}
 
-	// Handle wheel - zoom
+	// Check if an element or its ancestors has scrollable content
+	function hasScrollableContent(element: HTMLElement): boolean {
+		let el: HTMLElement | null = element;
+
+		while (el && el !== containerEl) {
+			const style = getComputedStyle(el);
+			const isScrollable = style.overflowY === 'auto' || style.overflowY === 'scroll';
+
+			if (isScrollable && el.scrollHeight > el.clientHeight) {
+				return true;
+			}
+			el = el.parentElement;
+		}
+		return false;
+	}
+
+	// Handle wheel - zoom (unless over scrollable content)
 	function handleWheel(e: WheelEvent) {
+		// Disable zoom when hovering over scrollable content to prevent jarring transitions
+		if (hasScrollableContent(e.target as HTMLElement)) {
+			return;
+		}
+
 		e.preventDefault();
 
 		const rect = containerEl.getBoundingClientRect();

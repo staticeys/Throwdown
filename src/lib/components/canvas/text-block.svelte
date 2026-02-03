@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { canvasStore } from '$lib/stores/canvas.svelte';
-	import { renderMarkdown, hasMarkdown } from '$lib/utils/markdown';
+	import { renderMarkdown } from '$lib/utils/markdown';
 	import type { TextNode } from '$lib/types/canvas';
 
 	// Props
@@ -17,8 +17,7 @@
 
 	// Derived
 	let searchTerm = $derived(canvasStore.searchTerm);
-	let showRendered = $derived(!isEditing && hasMarkdown(node.text));
-	let renderedHtml = $derived(showRendered ? renderMarkdown(node.text, searchTerm) : '');
+	let renderedHtml = $derived(!isEditing ? renderMarkdown(node.text, searchTerm) : '');
 
 	// Start editing
 	export function startEdit() {
@@ -120,11 +119,11 @@
 				aria-multiline="true"
 			>{initialText}</div>
 		{/key}
-	{:else if showRendered}
+	{:else if node.text}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 		<div class="text-rendered">{@html renderedHtml}</div>
 	{:else}
-		<div class="text-plain">{node.text || 'Double-click to edit'}</div>
+		<div class="text-rendered text-placeholder">Double-click to edit</div>
 	{/if}
 </div>
 
@@ -150,21 +149,13 @@
 		cursor: text;
 	}
 
-	.text-plain {
-		white-space: pre-wrap;
-		word-break: break-word;
-		color: var(--text-secondary);
-		user-select: none;
-	}
-
-	.text-plain:empty::before {
-		content: 'Double-click to edit';
-		color: var(--text-muted);
-	}
-
 	.text-rendered {
 		overflow: auto;
 		user-select: none;
+	}
+
+	.text-placeholder {
+		color: var(--text-muted);
 	}
 
 	/* Markdown rendered styles */
