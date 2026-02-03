@@ -1,21 +1,19 @@
 <script lang="ts">
 	import { canvasStore } from '$lib/stores/canvas.svelte';
-	import type { CanvasNode, Side } from '$lib/types/canvas';
+	import type { CanvasNode } from '$lib/types/canvas';
 	import { resolveColor } from '$lib/types/canvas';
 	import { calculateAlignments } from '$lib/utils/alignment';
-	import { detectEdgeSnap, type SnapResult } from '$lib/utils/geometry';
+	import { getContainedNodes } from '$lib/utils/geometry';
 
 	// Props
 	let {
 		node,
 		children,
-		onEdit,
-		isGhost = false
+		onEdit
 	}: {
 		node: CanvasNode;
 		children?: import('svelte').Snippet;
 		onEdit?: (id: string) => void;
-		isGhost?: boolean;
 	} = $props();
 
 	// Local state
@@ -24,39 +22,20 @@
 	let nodeStart = $state({ x: 0, y: 0 });
 	let isResizing = $state(false);
 	let resizeStart = $state({ x: 0, y: 0, width: 0, height: 0 });
-	let currentSnap = $state<SnapResult | null>(null);
-	let hasUnlockedDuringDrag = $state(false); // Track if we unlocked via Option+drag
+	let containedNodesAtDragStart = $state<{ id: string; x: number; y: number }[]>([]); // Snapshot of contained nodes with positions when group drag starts
 	const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 	const MIN_WIDTH = 120;
 	const MIN_HEIGHT = 80;
-	const SNAP_THRESHOLD = 8;
 
 	// Derived state - access selection directly for proper Svelte 5 reactivity
 	let isSelected = $derived(canvasStore.selection.includes(node.id));
 	let nodeColor = $derived(resolveColor(node.color));
 	let hasColor = $derived(nodeColor !== undefined);
+	let isGroup = $derived(node.type === 'group');
 
 	// Link mode derived state
 	let isLinkMode = $derived(canvasStore.isLinkMode);
 	let isLinkSource = $derived(canvasStore.linkSource === node.id);
-
-	// Lock-related derived state
-	let lockedCluster = $derived(canvasStore.getLockedCluster(node.id));
-	let isInLockedCluster = $derived(lockedCluster.length > 1);
-
-	// Check if any node in this cluster is selected (for cluster glow)
-	let isClusterSelected = $derived(
-		isInLockedCluster && lockedCluster.some((id) => canvasStore.selection.includes(id))
-	);
-
-	// Pending lock highlight (which edge will lock on release)
-	let pendingLockSide = $derived(currentSnap?.draggedSide ?? null);
-
-	// Check if this node is the target of a pending snap (from another node being dragged)
-	let isSnapTarget = $derived(canvasStore.pendingSnapTarget?.nodeId === node.id);
-	let snapTargetSide = $derived(
-		isSnapTarget ? canvasStore.pendingSnapTarget?.side ?? null : null
-	);
 
 	// Handle click in link mode
 	function handleLinkModeClick(e: MouseEvent) {
@@ -102,6 +81,16 @@
 		dragStart = { x: e.clientX, y: e.clientY };
 		nodeStart = { x: node.x, y: node.y };
 
+		// If this is a group, capture contained nodes with their positions at drag start (snapshot)
+		// This prevents the "vacuum cleaner" effect during drag
+		if (isGroup) {
+			containedNodesAtDragStart = getContainedNodes(node, canvasStore.nodes).map((n) => ({
+				id: n.id,
+				x: n.x,
+				y: n.y
+			}));
+		}
+
 		// Add document listeners for drag
 		document.addEventListener('mousemove', handleMouseMove);
 		document.addEventListener('mouseup', handleMouseUp);
@@ -112,12 +101,6 @@
 	function handleMouseMove(e: MouseEvent) {
 		if (!isDragging) return;
 
-		// Option/Alt + drag = unlock from neighbors permanently
-		if (e.altKey && isInLockedCluster && !hasUnlockedDuringDrag) {
-			canvasStore.removeLocksForNode(node.id);
-			hasUnlockedDuringDrag = true;
-		}
-
 		const zoom = canvasStore.viewport.zoom;
 		const dx = (e.clientX - dragStart.x) / zoom;
 		const dy = (e.clientY - dragStart.y) / zoom;
@@ -126,34 +109,18 @@
 		if (isSelected && canvasStore.selection.length > 1) {
 			canvasStore.moveSelectedNodes(dx, dy);
 			canvasStore.clearAlignmentGuides();
-			currentSnap = null;
 			dragStart = { x: e.clientX, y: e.clientY };
 			return;
 		}
 
-		// Locked cluster drag (if still in a cluster after potential unlock)
-		if (isInLockedCluster && !hasUnlockedDuringDrag) {
-			// Move entire locked cluster
-			for (const nodeId of lockedCluster) {
-				const n = canvasStore.nodes.find((nd) => nd.id === nodeId);
-				if (n) {
-					canvasStore.updateNode(nodeId, { x: n.x + dx, y: n.y + dy });
-				}
-			}
-			canvasStore.clearAlignmentGuides();
-			currentSnap = null;
-			dragStart = { x: e.clientX, y: e.clientY };
-			return;
-		}
-
-		// Single node drag with alignment guides and edge snapping
+		// Single node drag with alignment guides
 		let newX = nodeStart.x + dx;
 		let newY = nodeStart.y + dy;
 
-		// Get other nodes for snap detection
+		// Get other nodes for alignment detection
 		const otherNodes = canvasStore.nodes.filter((n) => n.id !== node.id);
 
-		// Step 1: Calculate alignment guides (always, for visual feedback)
+		// Calculate alignment guides
 		const alignment = calculateAlignments(
 			{ x: newX, y: newY, width: node.width, height: node.height },
 			otherNodes
@@ -174,42 +141,25 @@
 			canvasStore.clearAlignmentGuides();
 		}
 
-		// Step 2: Check for edge snap (lock) on the aligned position
-		const tempNode = { ...node, x: newX, y: newY };
-		const snap = detectEdgeSnap(tempNode, otherNodes, SNAP_THRESHOLD);
-
-		if (snap) {
-			// Apply edge snap position (overrides alignment for the snapping axis)
-			newX = snap.snapX;
-			newY = snap.snapY;
-			currentSnap = snap;
-			// Set pending snap target for visual feedback on the target node
-			canvasStore.setPendingSnapTarget(snap.targetNode.id, snap.targetSide);
-		} else {
-			currentSnap = null;
-			canvasStore.clearPendingSnapTarget();
-		}
-
 		// Move the node
 		canvasStore.moveNode(node.id, newX, newY);
+
+		// If dragging a group, move its contained nodes along with it
+		// Use the stored initial positions to compute new positions (absolute, not incremental)
+		if (isGroup && containedNodesAtDragStart.length > 0) {
+			for (const contained of containedNodesAtDragStart) {
+				canvasStore.updateNode(contained.id, {
+					x: contained.x + dx,
+					y: contained.y + dy
+				});
+			}
+		}
 	}
 
 	// Handle drag end
-	function handleMouseUp(e: MouseEvent) {
-		// Create lock if we're snapped to another node
-		if (currentSnap) {
-			canvasStore.addLock(
-				node.id,
-				currentSnap.draggedSide,
-				currentSnap.targetNode.id,
-				currentSnap.targetSide
-			);
-		}
-
+	function handleMouseUp() {
 		isDragging = false;
-		currentSnap = null;
-		hasUnlockedDuringDrag = false;
-		canvasStore.clearPendingSnapTarget();
+		containedNodesAtDragStart = []; // Reset contained nodes snapshot
 		document.removeEventListener('mousemove', handleMouseMove);
 		document.removeEventListener('mouseup', handleMouseUp);
 		document.body.classList.remove('dragging');
@@ -263,29 +213,29 @@
 	class="canvas-object"
 	class:selected={isSelected}
 	class:has-color={hasColor}
-	class:ghost={isGhost}
+	class:is-group={isGroup}
 	class:link-mode-active={isLinkMode}
 	class:link-source={isLinkSource}
-	class:cluster-selected={isClusterSelected}
-	class:snap-left={pendingLockSide === 'left'}
-	class:snap-right={pendingLockSide === 'right'}
-	class:snap-top={pendingLockSide === 'top'}
-	class:snap-bottom={pendingLockSide === 'bottom'}
-	class:snap-target-left={snapTargetSide === 'left'}
-	class:snap-target-right={snapTargetSide === 'right'}
-	class:snap-target-top={snapTargetSide === 'top'}
-	class:snap-target-bottom={snapTargetSide === 'bottom'}
 	style:left="{node.x}px"
 	style:top="{node.y}px"
 	style:width="{node.width}px"
 	style:height="{node.height}px"
-	style:overflow={isSelected ? 'visible' : 'hidden'}
+	style:overflow={isSelected || isGroup ? 'visible' : 'hidden'}
 	style:--node-color={nodeColor}
 	data-node-id={node.id}
-	onmousedown={handleMouseDown}
-	ondblclick={handleDblClick}
+	onmousedown={isGroup ? undefined : handleMouseDown}
+	ondblclick={isGroup ? undefined : handleDblClick}
 >
-	<div class="object-content">
+	{#if isGroup}
+		<!-- Border frame for groups - captures clicks on the border only -->
+		<div
+			class="group-frame"
+			onmousedown={handleMouseDown}
+			ondblclick={handleDblClick}
+		></div>
+	{/if}
+
+	<div class="object-content" class:group-content={isGroup}>
 		{#if children}
 			{@render children()}
 		{/if}
@@ -295,15 +245,12 @@
 		<div class="selection-indicator"></div>
 
 		<!-- Resize handle - positioned outside bottom-right corner -->
-		<!-- Hidden when node is part of a locked cluster to prevent visual desync -->
-		{#if !isInLockedCluster}
-			<div
-				class="resize-handle"
-				onmousedown={handleResizeMouseDown}
-				aria-label="Resize"
-				title="Resize"
-			></div>
-		{/if}
+		<div
+			class="resize-handle"
+			onmousedown={handleResizeMouseDown}
+			aria-label="Resize"
+			title="Resize"
+		></div>
 	{/if}
 </div>
 
@@ -329,17 +276,6 @@
 	.canvas-object.has-color {
 		border-color: var(--node-color);
 		background-color: color-mix(in srgb, var(--node-color) 12%, var(--bg-surface));
-	}
-
-	/* Ghost nodes - hidden by filter but locked to visible nodes */
-	.canvas-object.ghost {
-		opacity: 0.35;
-		border-style: dashed;
-		pointer-events: none;
-	}
-
-	.canvas-object.ghost .object-content {
-		pointer-events: none;
 	}
 
 	.canvas-object.selected {
@@ -446,60 +382,58 @@
 		z-index: 10;
 	}
 
-	/* Snap-lock preview - thicker border on snapped edge (dragged node) */
-	.canvas-object.snap-left {
-		border-left-width: 3px;
-		border-left-color: var(--accent);
+	/* Group node styles - transparent frame */
+	.canvas-object.is-group {
+		background-color: transparent;
+		border-style: dashed;
+		border-width: 2px;
+		border-color: var(--border-strong);
+		box-shadow: none;
+		pointer-events: none; /* Allow clicks to pass through to nodes below */
 	}
 
-	.canvas-object.snap-right {
-		border-right-width: 3px;
-		border-right-color: var(--accent);
+	.canvas-object.is-group:hover {
+		box-shadow: none;
+		border-color: var(--text-muted);
 	}
 
-	.canvas-object.snap-top {
-		border-top-width: 3px;
-		border-top-color: var(--accent);
+	.canvas-object.is-group.has-color {
+		background-color: color-mix(in srgb, var(--node-color) 5%, transparent);
+		border-color: var(--node-color);
 	}
 
-	.canvas-object.snap-bottom {
-		border-bottom-width: 3px;
-		border-bottom-color: var(--accent);
+	.canvas-object.is-group.selected {
+		border-color: var(--selection);
+		border-style: dashed;
 	}
 
-	/* Snap-lock preview - target node (node being snapped TO) */
-	.canvas-object.snap-target-left {
-		border-left-width: 3px;
-		border-left-color: var(--accent);
+	/* Group frame - captures clicks on the border area */
+	.group-frame {
+		position: absolute;
+		inset: -8px; /* Extend outward to create hit area around border */
+		border: 12px solid transparent; /* Wide transparent border for easy clicking */
+		pointer-events: auto;
+		cursor: grab;
+		z-index: 0;
 	}
 
-	.canvas-object.snap-target-right {
-		border-right-width: 3px;
-		border-right-color: var(--accent);
+	.group-frame:active {
+		cursor: grabbing;
 	}
 
-	.canvas-object.snap-target-top {
-		border-top-width: 3px;
-		border-top-color: var(--accent);
+	/* Group content - allows overflow for label, no pointer events */
+	.object-content.group-content {
+		overflow: visible;
+		pointer-events: none;
 	}
 
-	.canvas-object.snap-target-bottom {
-		border-bottom-width: 3px;
-		border-bottom-color: var(--accent);
+	/* But allow pointer events on the label itself */
+	.object-content.group-content :global(.group-label) {
+		pointer-events: auto;
 	}
 
-	/* Locked cluster visual - glow when any node in cluster is selected */
-	/* Uses node color if present, otherwise selection color */
-	.canvas-object.cluster-selected {
-		--cluster-glow: var(--node-color, var(--selection));
-		box-shadow:
-			0 0 0 2px color-mix(in srgb, var(--cluster-glow) 30%, transparent),
-			0 0 12px 4px color-mix(in srgb, var(--cluster-glow) 25%, transparent);
-	}
-
-	.canvas-object.cluster-selected.selected {
-		box-shadow:
-			0 0 0 2px var(--selection-bg),
-			0 0 16px 6px color-mix(in srgb, var(--cluster-glow, var(--selection)) 30%, transparent);
+	/* Make resize handle work for groups (which have pointer-events: none) */
+	.canvas-object.is-group .resize-handle {
+		pointer-events: auto;
 	}
 </style>

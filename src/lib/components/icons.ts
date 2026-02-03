@@ -49,7 +49,6 @@ export const icons = {
 
 	// Selection/linking
 	arrow: '↔',
-	unlink: '⊘',
 	group: '⬚',
 	duplicate: '⧉',
 

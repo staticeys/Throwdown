@@ -172,9 +172,6 @@
 		const node = nodeId ? canvasStore.activeCanvas?.nodes.find(n => n.id === nodeId) : null;
 		const isLink = node && isLinkNode(node);
 
-		// Check if node has any locks
-		const hasLocks = nodeId ? canvasStore.getLockedCluster(nodeId).length > 1 : false;
-
 		const menuItems: ContextMenuItem[] = [
 			{
 				label: 'Edit',
@@ -210,21 +207,6 @@
 				icon: icons.arrow,
 				action: () => canvasStore.linkSelectedNodes(),
 				disabled: !hasMultiple
-			},
-			{
-				label: 'Unlock from neighbors',
-				icon: icons.unlink,
-				action: () => {
-					if (hasMultiple) {
-						// Unlock all selected nodes
-						for (const id of canvasStore.selection) {
-							canvasStore.removeLocksForNode(id);
-						}
-					} else if (nodeId) {
-						canvasStore.removeLocksForNode(nodeId);
-					}
-				},
-				disabled: !hasLocks
 			},
 			{ label: '', icon: '', action: () => {}, separator: true },
 			{
@@ -368,7 +350,7 @@
 		>
 			<CanvasWorkspace bind:this={workspaceRef}>
 				{#each canvasStore.renderableNodes as node (node.id)}
-					<CanvasObject {node} onEdit={handleNodeEdit} isGhost={canvasStore.ghostNodeIds.has(node.id)}>
+					<CanvasObject {node} onEdit={handleNodeEdit}>
 						{#if isTextNode(node)}
 							<TextBlock
 								node={node as TextNode}

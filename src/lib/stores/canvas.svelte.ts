@@ -6,12 +6,10 @@ import type {
 	TextNode,
 	LinkNode,
 	GroupNode,
-	NodeColor,
-	NodeLock,
-	Side
+	NodeColor
 } from '$lib/types/canvas';
 import type { AlignmentGuides } from '$lib/utils/alignment';
-import { calculateBoundingBox } from '$lib/utils/geometry';
+import { calculateBoundingBox, getContainedNodes } from '$lib/utils/geometry';
 import {
 	createCanvas,
 	createTextNode,
@@ -45,9 +43,6 @@ class CanvasStore {
 	isLinkMode = $state(false);
 	linkSource = $state<string | null>(null); // Node ID of the source
 
-	// Pending snap target (for visual feedback on target node during drag)
-	pendingSnapTarget = $state<{ nodeId: string; side: Side } | null>(null);
-
 	// Filter state (transient, not persisted)
 	tagFilters = $state<string[]>([]);
 	searchTerm = $state('');
@@ -69,10 +64,6 @@ class CanvasStore {
 
 	get edges(): CanvasEdge[] {
 		return this.activeCanvas?.edges ?? [];
-	}
-
-	get locks(): NodeLock[] {
-		return this.activeCanvas?.['x-locks'] ?? [];
 	}
 
 	get viewport(): Viewport {
@@ -150,37 +141,15 @@ class CanvasStore {
 		});
 	}
 
-	// Set of hidden node IDs for efficient lookup
-	get hiddenNodeIds(): Set<string> {
-		const visible = new Set(this.visibleNodes.map((n) => n.id));
-		return new Set(this.nodes.filter((n) => !visible.has(n.id)).map((n) => n.id));
-	}
-
-	// Ghost nodes: hidden nodes that are locked to visible nodes
-	// These should still render (with reduced opacity) so they move with their locked group
-	get ghostNodeIds(): Set<string> {
-		const validVisibleIds = new Set(this.visibleNodes.map((n) => n.id));
-		const hiddenIds = this.hiddenNodeIds;
-		const ghostIds = new Set<string>();
-
-		// For each visible node, find any hidden nodes in its lock cluster
-		for (const visibleId of validVisibleIds) {
-			const cluster = this.getLockedCluster(visibleId);
-			for (const nodeId of cluster) {
-				if (hiddenIds.has(nodeId)) {
-					ghostIds.add(nodeId);
-				}
-			}
-		}
-
-		return ghostIds;
-	}
-
-	// Nodes to render: visible + ghost nodes
+	// Nodes to render (filtered by tags/search)
 	get renderableNodes(): CanvasNode[] {
-		const validVisibleIds = new Set(this.visibleNodes.map((n) => n.id));
-		const ghostIds = this.ghostNodeIds;
-		return this.nodes.filter((n) => validVisibleIds.has(n.id) || ghostIds.has(n.id));
+		return this.visibleNodes;
+	}
+
+	// Node IDs hidden by filters (for deselecting when filters change)
+	get hiddenNodeIds(): Set<string> {
+		const visibleIds = new Set(this.visibleNodes.map((n) => n.id));
+		return new Set(this.nodes.filter((n) => !visibleIds.has(n.id)).map((n) => n.id));
 	}
 
 	// Initialize from IndexedDB
@@ -318,7 +287,11 @@ class CanvasStore {
 
 	addGroupNode(x: number, y: number, label?: string): GroupNode {
 		const node = createGroupNode(x, y, label);
-		this.addNode(node);
+		// Insert groups at the beginning so they render behind other nodes
+		if (this.activeCanvas) {
+			this.activeCanvas.nodes.unshift(node);
+			this.triggerSave();
+		}
 		return node;
 	}
 
@@ -341,13 +314,16 @@ class CanvasStore {
 	}
 
 	moveSelectedNodes(dx: number, dy: number): void {
-		// Collect all nodes to move: selected nodes + their locked cluster members
-		const nodesToMove = new Set<string>();
+		const nodesToMove = new Set<string>(this.selection);
 
+		// If a group is selected, include its contained nodes
 		for (const id of this.selection) {
-			const cluster = this.getLockedCluster(id);
-			for (const nodeId of cluster) {
-				nodesToMove.add(nodeId);
+			const node = this.nodes.find((n) => n.id === id);
+			if (node?.type === 'group') {
+				const contained = this.getContainedNodesForGroup(id);
+				for (const c of contained) {
+					nodesToMove.add(c.id);
+				}
 			}
 		}
 
@@ -357,6 +333,13 @@ class CanvasStore {
 				this.updateNode(id, { x: node.x + dx, y: node.y + dy });
 			}
 		}
+	}
+
+	// Get nodes contained within a group's bounds
+	getContainedNodesForGroup(groupId: string): CanvasNode[] {
+		const group = this.nodes.find((n) => n.id === groupId);
+		if (!group || group.type !== 'group') return [];
+		return getContainedNodes(group, this.nodes);
 	}
 
 	resizeNode(id: string, width: number, height: number): void {
@@ -373,13 +356,6 @@ class CanvasStore {
 		this.activeCanvas.edges = this.activeCanvas.edges.filter(
 			e => e.fromNode !== id && e.toNode !== id
 		);
-
-		// Remove related locks
-		if (this.activeCanvas['x-locks']) {
-			this.activeCanvas['x-locks'] = this.activeCanvas['x-locks'].filter(
-				l => l.nodeA !== id && l.nodeB !== id
-			);
-		}
 
 		// Remove from selection
 		this.selection = this.selection.filter(s => s !== id);
@@ -476,85 +452,6 @@ class CanvasStore {
 			this.activeCanvas.edges = this.activeCanvas.edges.filter(e => e.id !== id);
 			this.triggerSave();
 		}
-	}
-
-	// Lock operations
-	addLock(nodeA: string, sideA: Side, nodeB: string, sideB: Side): NodeLock | null {
-		if (!this.activeCanvas) return null;
-
-		// Initialize locks array if needed
-		if (!this.activeCanvas['x-locks']) {
-			this.activeCanvas['x-locks'] = [];
-		}
-
-		// Check if lock already exists
-		const exists = this.locks.some(
-			(l) =>
-				(l.nodeA === nodeA && l.sideA === sideA && l.nodeB === nodeB && l.sideB === sideB) ||
-				(l.nodeA === nodeB && l.sideA === sideB && l.nodeB === nodeA && l.sideB === sideA)
-		);
-		if (exists) return null;
-
-		const lock: NodeLock = {
-			id: generateId(),
-			nodeA,
-			sideA,
-			nodeB,
-			sideB
-		};
-
-		this.activeCanvas['x-locks'].push(lock);
-		this.triggerSave();
-		return lock;
-	}
-
-	removeLock(lockId: string): void {
-		if (!this.activeCanvas || !this.activeCanvas['x-locks']) return;
-
-		this.activeCanvas['x-locks'] = this.activeCanvas['x-locks'].filter((l) => l.id !== lockId);
-		this.triggerSave();
-	}
-
-	removeLocksForNode(nodeId: string): void {
-		if (!this.activeCanvas || !this.activeCanvas['x-locks']) return;
-
-		this.activeCanvas['x-locks'] = this.activeCanvas['x-locks'].filter(
-			(l) => l.nodeA !== nodeId && l.nodeB !== nodeId
-		);
-		this.triggerSave();
-	}
-
-	// Pending snap target operations (for visual feedback during drag)
-	setPendingSnapTarget(nodeId: string, side: Side): void {
-		this.pendingSnapTarget = { nodeId, side };
-	}
-
-	clearPendingSnapTarget(): void {
-		this.pendingSnapTarget = null;
-	}
-
-	// Get all nodes transitively connected via locks (BFS)
-	getLockedCluster(nodeId: string): string[] {
-		const visited = new Set<string>();
-		const queue: string[] = [nodeId];
-
-		while (queue.length > 0) {
-			const current = queue.shift()!;
-			if (visited.has(current)) continue;
-			visited.add(current);
-
-			// Find all locks involving this node
-			for (const lock of this.locks) {
-				if (lock.nodeA === current && !visited.has(lock.nodeB)) {
-					queue.push(lock.nodeB);
-				}
-				if (lock.nodeB === current && !visited.has(lock.nodeA)) {
-					queue.push(lock.nodeA);
-				}
-			}
-		}
-
-		return Array.from(visited);
 	}
 
 	// Selection operations

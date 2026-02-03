@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { canvasStore } from '$lib/stores/canvas.svelte';
-	import { icons } from '$lib/components/icons';
 	import type { GroupNode } from '$lib/types/canvas';
 
 	// Props
@@ -14,6 +13,7 @@
 	// Start editing label
 	export function startEdit() {
 		isEditing = true;
+		canvasStore.setEditingText(true);
 		requestAnimationFrame(() => {
 			inputEl?.focus();
 			inputEl?.select();
@@ -23,6 +23,7 @@
 	// Stop editing
 	function stopEdit() {
 		isEditing = false;
+		canvasStore.setEditingText(false);
 	}
 
 	// Handle input change
@@ -45,101 +46,83 @@
 		stopEdit();
 	}
 
-	// Navigate to linked canvas (if any)
-	function navigateToCanvas(e: MouseEvent) {
+	// Handle double-click on label to start editing
+	function handleLabelDblClick(e: MouseEvent) {
 		e.stopPropagation();
-		// For now, groups don't navigate anywhere
-		// This would be extended to support nested canvases
-	}
-
-	// Handle click in edit mode
-	function handleClick(e: MouseEvent) {
-		if (isEditing) {
-			e.stopPropagation();
-		}
+		e.preventDefault();
+		startEdit();
 	}
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="canvas-ref" class:editing={isEditing} onclick={handleClick}>
-	<div class="ref-icon">{icons.canvas}</div>
-
-	{#if isEditing}
-		<input
-			type="text"
-			class="ref-input"
-			bind:this={inputEl}
-			value={node.label ?? ''}
-			oninput={handleInput}
-			onkeydown={handleKeyDown}
-			onblur={handleBlur}
-			placeholder="Group label..."
-		/>
-	{:else}
-		<div class="ref-content">
-			<div class="ref-label">{node.label || 'Untitled Group'}</div>
-			<div class="ref-hint">Group</div>
-		</div>
-	{/if}
+<div class="group-container">
+	<!-- Label positioned outside, above the group -->
+	<div class="group-label" ondblclick={handleLabelDblClick}>
+		{#if isEditing}
+			<input
+				type="text"
+				class="label-input"
+				bind:this={inputEl}
+				value={node.label ?? ''}
+				oninput={handleInput}
+				onkeydown={handleKeyDown}
+				onblur={handleBlur}
+				placeholder="Group label..."
+			/>
+		{:else}
+			<span class="label-text">{node.label || 'Group'}</span>
+		{/if}
+	</div>
 </div>
 
 <style>
-	.canvas-ref {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
+	.group-container {
 		width: 100%;
 		height: 100%;
-		padding: var(--space-2);
+		position: relative;
+	}
+
+	.group-label {
+		position: absolute;
+		top: -24px;
+		left: 0;
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
 		font-family: var(--font-sans);
-		font-size: 13px;
-		color: var(--text-primary);
-		background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-elevated) 100%);
-		overflow: hidden;
-	}
-
-	.ref-icon {
-		flex-shrink: 0;
-		font-size: 20px;
-		color: var(--text-secondary);
-	}
-
-	.ref-content {
-		flex: 1;
-		min-width: 0;
-		overflow: hidden;
-	}
-
-	.ref-label {
+		font-size: 12px;
 		font-weight: 500;
-		color: var(--text-primary);
+		color: var(--text-secondary);
+		cursor: text;
+		user-select: none;
+		z-index: 1;
+	}
+
+	.label-text {
+		padding: 2px 6px;
+		background: var(--bg-surface);
+		border-radius: var(--radius-sm);
 		white-space: nowrap;
+		max-width: 200px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
-	.ref-hint {
-		font-size: 11px;
-		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.ref-input {
-		flex: 1;
-		min-width: 0;
-		padding: var(--space-1) var(--space-2);
+	.label-input {
+		min-width: 80px;
+		max-width: 200px;
+		padding: 2px 6px;
 		font-family: var(--font-sans);
-		font-size: 13px;
+		font-size: 12px;
+		font-weight: 500;
 		color: var(--text-primary);
 		background: var(--bg-surface);
-		border: 1px solid var(--border);
+		border: 1px solid var(--accent);
 		border-radius: var(--radius-sm);
 		outline: none;
 	}
 
-	.ref-input:focus {
-		border-color: var(--accent);
+	.label-input:focus {
+		box-shadow: 0 0 0 2px var(--accent-muted);
 	}
 </style>
