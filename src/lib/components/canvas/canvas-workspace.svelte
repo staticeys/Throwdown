@@ -181,10 +181,28 @@
 		return false;
 	}
 
-	// Handle wheel - zoom (unless over scrollable content)
+	// Find the node ID from an element by walking up to find data-node-id attribute
+	function getNodeIdFromElement(element: HTMLElement): string | null {
+		let el: HTMLElement | null = element;
+
+		while (el && el !== containerEl) {
+			const nodeId = el.dataset.nodeId;
+			if (nodeId) {
+				return nodeId;
+			}
+			el = el.parentElement;
+		}
+		return null;
+	}
+
+	// Handle wheel - zoom (unless over selected/editing node with scrollable content)
 	function handleWheel(e: WheelEvent) {
-		// Disable zoom when hovering over scrollable content to prevent jarring transitions
-		if (hasScrollableContent(e.target as HTMLElement)) {
+		// Only allow scrolling within a node if it's selected or being edited
+		const nodeId = getNodeIdFromElement(e.target as HTMLElement);
+		const isNodeSelected = nodeId && canvasStore.selection.includes(nodeId);
+		const isEditing = canvasStore.isEditingText;
+
+		if ((isNodeSelected || isEditing) && hasScrollableContent(e.target as HTMLElement)) {
 			return;
 		}
 
