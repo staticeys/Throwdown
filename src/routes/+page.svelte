@@ -40,15 +40,6 @@
 		]);
 	});
 
-	// Manage link mode body class for cursor styles
-	$effect(() => {
-		if (canvasStore.isLinkMode) {
-			document.body.classList.add('link-mode');
-		} else {
-			document.body.classList.remove('link-mode');
-		}
-	});
-
 	// Deselect hidden nodes when filters change
 	$effect(() => {
 		const hiddenIds = canvasStore.hiddenNodeIds;
@@ -220,6 +211,56 @@
 		return menuItems;
 	}
 
+	// Get menu items for edge context menu
+	function getEdgeMenuItems(edgeId: string): ContextMenuItem[] {
+		const edge = canvasStore.getEdge(edgeId);
+		if (!edge) return [];
+
+		return [
+			{
+				label: 'Edit Label',
+				icon: icons.edit,
+				action: () => {
+					workspaceRef?.startEditingEdge(edgeId);
+				}
+			},
+			{ label: '', icon: '', action: () => {}, separator: true },
+			{
+				label: '←',
+				action: () => {
+					canvasStore.updateEdge(edgeId, {
+						fromEnd: edge.fromEnd === 'arrow' ? 'none' : 'arrow'
+					});
+				},
+				checked: edge.fromEnd === 'arrow'
+			},
+			{
+				label: '→',
+				action: () => {
+					canvasStore.updateEdge(edgeId, {
+						toEnd: edge.toEnd === 'none' ? 'arrow' : 'none'
+					});
+				},
+				checked: edge.toEnd !== 'none'
+			},
+			{ label: '', icon: '', action: () => {}, separator: true },
+			{
+				label: 'Delete',
+				icon: icons.trash,
+				action: () => canvasStore.deleteEdge(edgeId)
+			}
+		];
+	}
+
+	// Handle edge context menu
+	function handleEdgeContextMenu(e: MouseEvent, edgeId: string) {
+		contextMenu = {
+			x: e.clientX,
+			y: e.clientY,
+			items: getEdgeMenuItems(edgeId)
+		};
+	}
+
 	// Handle paste
 	async function handlePaste() {
 		const clipboard = await parseClipboard();
@@ -269,12 +310,7 @@
 	function handleCanvasClick(e: MouseEvent) {
 		const target = e.target as HTMLElement;
 		if (!target.closest('.canvas-object')) {
-			// In link mode, clicking empty canvas clears source (allows choosing new source)
-			if (canvasStore.isLinkMode) {
-				canvasStore.clearLinkSource();
-			} else {
-				canvasStore.clearSelection();
-			}
+			canvasStore.clearSelection();
 		}
 	}
 
@@ -341,6 +377,8 @@
 		/>
 
 		<!-- Canvas area -->
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<main
 			class="canvas-area"
 			oncontextmenu={handleContextMenu}
@@ -348,7 +386,7 @@
 			onmousemove={handleMouseMove}
 			onclick={handleCanvasClick}
 		>
-			<CanvasWorkspace bind:this={workspaceRef}>
+			<CanvasWorkspace bind:this={workspaceRef} onedgecontextmenu={handleEdgeContextMenu}>
 				{#each canvasStore.renderableNodes as node (node.id)}
 					<CanvasObject {node} onEdit={handleNodeEdit}>
 						{#if isTextNode(node)}
@@ -381,23 +419,6 @@
 		items={contextMenu.items}
 		onClose={closeContextMenu}
 	/>
-{/if}
-
-{#if canvasStore.isLinkMode}
-	<div class="link-mode-overlay">
-		<div class="link-mode-status">
-			<span class="link-icon">🔗</span>
-			Link Mode
-			<span class="link-status-divider">•</span>
-			{#if canvasStore.linkSource}
-				Click destination(s)
-			{:else}
-				Click source
-			{/if}
-			<span class="link-status-divider">•</span>
-			<kbd>Esc</kbd> to exit • <kbd>⇧⌘L</kbd> to toggle
-		</div>
-	</div>
 {/if}
 
 <TipsOverlay />
@@ -443,59 +464,4 @@
 		color: var(--text-secondary);
 	}
 
-	/* Link mode overlay */
-	.link-mode-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		pointer-events: none;
-		z-index: 100;
-	}
-
-	.link-mode-status {
-		position: absolute;
-		top: var(--header-height);
-		left: 50%;
-		transform: translateX(-50%);
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		padding: var(--space-2) var(--space-4);
-		background: var(--accent);
-		color: white;
-		border-radius: var(--radius-md);
-		font-family: var(--font-sans);
-		font-size: var(--font-size-base);
-		font-weight: 500;
-		box-shadow: var(--shadow-lg);
-		pointer-events: auto;
-		user-select: none;
-	}
-
-	.link-icon {
-		font-size: 16px;
-	}
-
-	.link-status-divider {
-		opacity: 0.6;
-	}
-
-	.link-mode-status kbd {
-		padding: 2px 6px;
-		background: var(--white-alpha-20);
-		border-radius: var(--radius-sm);
-		font-family: var(--font-mono);
-		font-size: 12px;
-	}
-
-	/* Global link mode cursor - applied via body class */
-	:global(body.link-mode) {
-		cursor: crosshair;
-	}
-
-	:global(body.link-mode .canvas-object) {
-		cursor: pointer;
-	}
 </style>

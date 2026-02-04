@@ -20,6 +20,7 @@
 		action: () => void;
 		disabled?: boolean;
 		separator?: boolean;
+		checked?: boolean;
 	}
 
 	// Adjust position to keep menu in viewport
@@ -101,7 +102,9 @@
 					disabled={item.disabled}
 					role="menuitem"
 				>
-					{#if item.icon}
+					{#if item.checked !== undefined}
+						<span class="item-check">{item.checked ? '✓' : ''}</span>
+					{:else if item.icon}
 						<span class="item-icon">{item.icon}</span>
 					{/if}
 					<span class="item-label">{item.label}</span>
@@ -155,10 +158,16 @@
 		cursor: not-allowed;
 	}
 
-	.item-icon {
+	.item-icon,
+	.item-check {
 		flex-shrink: 0;
 		width: 16px;
 		text-align: center;
+	}
+
+	.item-check {
+		color: var(--accent);
+		font-weight: 600;
 	}
 
 	.item-label {

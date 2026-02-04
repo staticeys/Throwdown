@@ -39,10 +39,6 @@ class CanvasStore {
 	isLoading = $state(true);
 	alignmentGuides = $state<AlignmentGuides | null>(null);
 
-	// Link mode state
-	isLinkMode = $state(false);
-	linkSource = $state<string | null>(null); // Node ID of the source
-
 	// Filter state (transient, not persisted)
 	tagFilters = $state<string[]>([]);
 	searchTerm = $state('');
@@ -454,6 +450,20 @@ class CanvasStore {
 		}
 	}
 
+	updateEdge(id: string, updates: Partial<CanvasEdge>): void {
+		if (this.activeCanvas) {
+			const edge = this.activeCanvas.edges.find(e => e.id === id);
+			if (edge) {
+				Object.assign(edge, updates);
+				this.triggerSave();
+			}
+		}
+	}
+
+	getEdge(id: string): CanvasEdge | undefined {
+		return this.activeCanvas?.edges.find(e => e.id === id);
+	}
+
 	// Selection operations
 	select(id: string): void {
 		if (!this.selection.includes(id)) {
@@ -525,49 +535,6 @@ class CanvasStore {
 		saveCanvas(id, JSON.parse(JSON.stringify(canvas)));
 		saveSetting('activeCanvasId', id);
 		return id;
-	}
-
-	// Link mode operations
-	toggleLinkMode(): void {
-		this.isLinkMode = !this.isLinkMode;
-		if (this.isLinkMode) {
-			// Clear selection when entering link mode
-			this.selection = [];
-		} else {
-			this.linkSource = null;
-		}
-	}
-
-	exitLinkMode(): void {
-		this.isLinkMode = false;
-		this.linkSource = null;
-	}
-
-	setLinkSource(nodeId: string): void {
-		this.linkSource = nodeId;
-	}
-
-	clearLinkSource(): void {
-		this.linkSource = null;
-	}
-
-	createLinkFromSource(targetNodeId: string): void {
-		if (!this.linkSource) return;
-
-		// Don't allow self-links
-		if (this.linkSource === targetNodeId) {
-			return;
-		}
-
-		// Check if edge already exists
-		const exists = this.edges.some(
-			(e) => e.fromNode === this.linkSource && e.toNode === targetNodeId
-		);
-
-		if (exists) return;
-
-		// Create the edge
-		this.addEdge(this.linkSource, targetNodeId);
 	}
 
 	// Filter operations

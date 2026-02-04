@@ -3,8 +3,12 @@
 	import type { CanvasEdge, CanvasNode, Side } from '$lib/types/canvas';
 	import { resolveColor } from '$lib/types/canvas';
 
-	// Link mode state
-	let isLinkMode = $derived(canvasStore.isLinkMode);
+	// Props for dispatching events to parent
+	let {
+		oncontextmenu
+	}: {
+		oncontextmenu?: (e: MouseEvent, edgeId: string) => void;
+	} = $props();
 
 	// Renderable node IDs (visible + ghost nodes)
 	let renderableNodeIds = $derived(new Set(canvasStore.renderableNodes.map((n) => n.id)));
@@ -18,6 +22,12 @@
 
 	// Track hovered edge for delete UI
 	let hoveredEdgeId = $state<string | null>(null);
+
+	// Track edge being edited for label
+	let editingEdgeId = $state<string | null>(null);
+	let editingLabel = $state('');
+	// svelte-ignore non_reactive_update
+	let inputEl: HTMLInputElement;
 
 	// Get node by ID
 	function getNode(id: string): CanvasNode | undefined {
@@ -126,6 +136,24 @@
 		return `translate(${to.x}, ${to.y}) rotate(${angle})`;
 	}
 
+	// Calculate arrow transform for start arrow (reversed direction)
+	function getArrowStartTransform(edge: CanvasEdge): string | null {
+		const fromNode = getNode(edge.fromNode);
+		const toNode = getNode(edge.toNode);
+
+		if (!fromNode || !toNode) return null;
+
+		const from = getConnectionPoint(fromNode, edge.fromSide, toNode);
+		const to = getConnectionPoint(toNode, edge.toSide, fromNode);
+
+		// Calculate angle pointing away from the edge (reversed)
+		const dx = from.x - to.x;
+		const dy = from.y - to.y;
+		const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+		return `translate(${from.x}, ${from.y}) rotate(${angle})`;
+	}
+
 	// Get edge color
 	function getEdgeColor(edge: CanvasEdge): string {
 		return resolveColor(edge.color) ?? 'var(--text-muted)';
@@ -141,7 +169,7 @@
 		return edge.fromEnd === 'arrow';
 	}
 
-	// Calculate midpoint of edge for delete button
+	// Calculate midpoint of edge for delete button and label
 	function getEdgeMidpoint(edge: CanvasEdge): { x: number; y: number } | null {
 		const fromNode = getNode(edge.fromNode);
 		const toNode = getNode(edge.toNode);
@@ -157,16 +185,60 @@
 		};
 	}
 
-	// Handle edge click in link mode (delete)
-	function handleEdgeClick(edgeId: string, e: MouseEvent) {
-		if (isLinkMode) {
-			e.stopPropagation();
-			canvasStore.deleteEdge(edgeId);
+	// Handle context menu
+	function handleContextMenu(edgeId: string, e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		oncontextmenu?.(e, edgeId);
+	}
+
+	// Handle double-click for label editing
+	function handleDoubleClick(edge: CanvasEdge, e: MouseEvent) {
+		e.stopPropagation();
+		startEditing(edge);
+	}
+
+	// Start editing a label
+	export function startEditing(edge: CanvasEdge) {
+		editingEdgeId = edge.id;
+		editingLabel = edge.label ?? '';
+		canvasStore.setEditingText(true);
+		requestAnimationFrame(() => {
+			inputEl?.focus();
+			inputEl?.select();
+		});
+	}
+
+	// Save label and stop editing
+	function saveLabel() {
+		if (editingEdgeId) {
+			canvasStore.updateEdge(editingEdgeId, { label: editingLabel || undefined });
+			editingEdgeId = null;
+			editingLabel = '';
+			canvasStore.setEditingText(false);
+		}
+	}
+
+	// Cancel editing
+	function cancelEditing() {
+		editingEdgeId = null;
+		editingLabel = '';
+		canvasStore.setEditingText(false);
+	}
+
+	// Handle input keydown
+	function handleInputKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			saveLabel();
+		} else if (e.key === 'Escape') {
+			e.preventDefault();
+			cancelEditing();
 		}
 	}
 </script>
 
-<svg class="edge-layer" class:link-mode={isLinkMode} xmlns="http://www.w3.org/2000/svg">
+<svg class="edge-layer" xmlns="http://www.w3.org/2000/svg">
 	<defs>
 		<!-- Arrow marker definition -->
 		<marker
@@ -187,6 +259,7 @@
 		{@const color = getEdgeColor(edge)}
 		{@const midpoint = getEdgeMidpoint(edge)}
 		{@const isHovered = hoveredEdgeId === edge.id}
+		{@const isEditing = editingEdgeId === edge.id}
 		{#if path}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -194,21 +267,20 @@
 			<g
 				class="edge-group"
 				class:hovered={isHovered}
-				onmouseenter={() => { if (isLinkMode) hoveredEdgeId = edge.id; }}
+				onmouseenter={() => { hoveredEdgeId = edge.id; }}
 				onmouseleave={() => { hoveredEdgeId = null; }}
-				onclick={(e) => handleEdgeClick(edge.id, e)}
+				oncontextmenu={(e) => handleContextMenu(edge.id, e)}
+				ondblclick={(e) => handleDoubleClick(edge, e)}
 			>
 				<!-- Invisible wider path for easier hovering -->
-				{#if isLinkMode}
-					<path
-						d={path}
-						fill="none"
-						stroke="transparent"
-						stroke-width="16"
-						stroke-linecap="round"
-						class="edge-hitarea"
-					/>
-				{/if}
+				<path
+					d={path}
+					fill="none"
+					stroke="transparent"
+					stroke-width="16"
+					stroke-linecap="round"
+					class="edge-hitarea"
+				/>
 
 				<!-- Edge line -->
 				<path
@@ -219,14 +291,13 @@
 					stroke-linecap="round"
 					stroke-dasharray="none"
 					class="edge-path"
-					opacity={isLinkMode && !isHovered ? 0.4 : 1}
 				/>
 
 				<!-- Arrow at end -->
 				{#if hasArrowEnd(edge)}
 					{@const transform = getArrowTransform(edge)}
 					{#if transform}
-						<g {transform} opacity={isLinkMode && !isHovered ? 0.4 : 1}>
+						<g {transform}>
 							<path
 								d="M -8 -4 L 0 0 L -8 4"
 								fill="none"
@@ -239,41 +310,60 @@
 					{/if}
 				{/if}
 
-				<!-- Delete button in link mode -->
-				{#if isLinkMode && isHovered && midpoint}
-					<circle
-						cx={midpoint.x}
-						cy={midpoint.y}
-						r="12"
-						fill="var(--destructive)"
-						class="delete-circle"
-					/>
-					<text
-						x={midpoint.x}
-						y={midpoint.y}
-						text-anchor="middle"
-						dominant-baseline="central"
-						fill="white"
-						font-size="16"
-						font-weight="bold"
-						class="delete-icon"
-					>×</text>
+				<!-- Arrow at start -->
+				{#if hasArrowStart(edge)}
+					{@const transform = getArrowStartTransform(edge)}
+					{#if transform}
+						<g {transform}>
+							<path
+								d="M -8 -4 L 0 0 L -8 4"
+								fill="none"
+								stroke={color}
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+						</g>
+					{/if}
 				{/if}
+
 			</g>
 
-			<!-- Label if present (outside group so it doesn't interfere with interaction) -->
-			{#if edge.label && midpoint}
-				<text
-					x={midpoint.x}
-					y={midpoint.y - 16}
-					text-anchor="middle"
-					dominant-baseline="middle"
-					class="edge-label"
-					fill={color}
-					opacity={isLinkMode ? 0.4 : 1}
-				>
-					{edge.label}
-				</text>
+			<!-- Label (outside group so it doesn't interfere with interaction) -->
+			{#if midpoint}
+				{#if isEditing}
+					<!-- Label editing input -->
+					<foreignObject
+						x={midpoint.x - 75}
+						y={midpoint.y - 28}
+						width="150"
+						height="36"
+					>
+						<input
+							type="text"
+							class="edge-label-input"
+							bind:this={inputEl}
+							bind:value={editingLabel}
+							onblur={saveLabel}
+							onkeydown={handleInputKeydown}
+						/>
+					</foreignObject>
+				{:else if edge.label}
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<foreignObject
+						x={midpoint.x - 100}
+						y={midpoint.y - 28}
+						width="200"
+						height="24"
+						class="edge-label-container"
+						ondblclick={(e) => handleDoubleClick(edge, e)}
+					>
+						<div class="edge-label">
+							{edge.label}
+						</div>
+					</foreignObject>
+				{/if}
 			{/if}
 		{/if}
 	{/each}
@@ -292,16 +382,9 @@
 		overflow: visible;
 	}
 
-	.edge-layer.link-mode {
-		pointer-events: auto;
-	}
-
 	.edge-group {
 		cursor: default;
-	}
-
-	.edge-layer.link-mode .edge-group {
-		cursor: pointer;
+		pointer-events: auto;
 	}
 
 	.edge-path {
@@ -315,29 +398,44 @@
 	}
 
 	.edge-group.hovered .edge-path {
-		opacity: 1 !important;
+		stroke-width: 3;
 	}
 
-	.delete-circle {
-		cursor: pointer;
-		filter: drop-shadow(0 2px 4px var(--black-alpha-20));
-		transition: transform var(--transition-fast);
-	}
-
-	.delete-circle:hover {
-		transform: scale(1.1);
-	}
-
-	.delete-icon {
-		pointer-events: none;
-		user-select: none;
+	.edge-label-container {
+		overflow: visible;
+		pointer-events: auto;
+		cursor: text;
 	}
 
 	.edge-label {
+		display: flex;
+		justify-content: center;
+		padding: var(--space-0) calc(var(--space-1) + var(--space-0));
+		background: var(--bg-surface);
+		border-radius: var(--radius-sm);
 		font-family: var(--font-sans);
 		font-size: 12px;
-		pointer-events: none;
+		color: var(--text-secondary);
+		white-space: nowrap;
+		max-width: 200px;
+		overflow: hidden;
+		text-overflow: ellipsis;
 		user-select: none;
-		transition: opacity var(--transition-fast);
+		width: fit-content;
+		margin: 0 auto;
+		cursor: text;
+	}
+
+	.edge-label-input {
+		width: 100%;
+		padding: var(--space-1) var(--space-2);
+		font-family: var(--font-sans);
+		font-size: 12px;
+		text-align: center;
+		background: var(--bg-surface);
+		border: 1px solid var(--accent);
+		border-radius: var(--radius-sm);
+		outline: none;
+		box-shadow: var(--shadow-md);
 	}
 </style>
