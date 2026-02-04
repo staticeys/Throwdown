@@ -149,7 +149,7 @@
 		height: 100%;
 		padding: var(--space-2);
 		font-family: var(--font-sans);
-		font-size: 13px;
+		font-size: var(--font-size-sm);
 		color: var(--text-primary);
 		overflow: hidden;
 	}
@@ -176,7 +176,7 @@
 	}
 
 	.link-url {
-		font-size: 11px;
+		font-size: var(--font-size-xs);
 		color: var(--text-muted);
 		white-space: nowrap;
 		overflow: hidden;

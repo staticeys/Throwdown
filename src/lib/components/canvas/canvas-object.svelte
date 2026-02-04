@@ -320,7 +320,7 @@
 		z-index: 10;
 		background: var(--bg-elevated);
 		border: 1px solid var(--border);
-		border-radius: 4px;
+		border-radius: var(--radius-sm);
 		cursor: nwse-resize !important;
 		box-shadow: var(--shadow-sm);
 		transition:
@@ -334,7 +334,7 @@
 		background: var(--bg-surface);
 		border-color: var(--accent);
 		box-shadow: 0 0 0 2px var(--accent-muted);
-		transform: scale(1.25);
+		transform: scale(var(--hover-scale));
 	}
 
 	.resize-handle::after {

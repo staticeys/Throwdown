@@ -320,7 +320,7 @@
 
 	.delete-circle {
 		cursor: pointer;
-		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+		filter: drop-shadow(0 2px 4px var(--black-alpha-20));
 		transition: transform var(--transition-fast);
 	}
 

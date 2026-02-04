@@ -154,7 +154,7 @@
 		width: 32px;
 		height: 32px;
 		padding: 0;
-		font-size: 16px;
+		font-size: var(--font-size-md);
 		color: var(--text-secondary);
 		background: transparent;
 		border: none;

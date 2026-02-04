@@ -90,7 +90,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background-color: rgba(0, 0, 0, 0.5);
+		background-color: var(--overlay-bg);
 		z-index: 1000;
 	}
 
@@ -172,8 +172,8 @@
 	dt {
 		display: flex;
 		align-items: center;
-		gap: 4px;
-		font-size: 12px;
+		gap: var(--space-1);
+		font-size: var(--font-size-xs);
 		color: var(--text-secondary);
 	}
 

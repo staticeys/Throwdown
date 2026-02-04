@@ -456,7 +456,7 @@
 
 	.link-mode-status {
 		position: absolute;
-		top: 60px;
+		top: var(--header-height);
 		left: 50%;
 		transform: translateX(-50%);
 		display: flex;
@@ -467,7 +467,7 @@
 		color: white;
 		border-radius: var(--radius-md);
 		font-family: var(--font-sans);
-		font-size: 14px;
+		font-size: var(--font-size-base);
 		font-weight: 500;
 		box-shadow: var(--shadow-lg);
 		pointer-events: auto;
@@ -484,7 +484,7 @@
 
 	.link-mode-status kbd {
 		padding: 2px 6px;
-		background: rgba(255, 255, 255, 0.2);
+		background: var(--white-alpha-20);
 		border-radius: var(--radius-sm);
 		font-family: var(--font-mono);
 		font-size: 12px;

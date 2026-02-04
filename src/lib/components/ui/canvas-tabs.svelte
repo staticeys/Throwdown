@@ -117,7 +117,7 @@
 		gap: var(--space-1);
 		padding: var(--space-1) var(--space-2);
 		font-family: var(--font-sans);
-		font-size: 13px;
+		font-size: var(--font-size-sm);
 		color: var(--text-secondary);
 		background-color: transparent;
 		border-radius: var(--radius-sm);

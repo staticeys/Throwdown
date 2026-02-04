@@ -41,7 +41,7 @@
 				return [
 					{ text: 'Backspace to delete' },
 					{ text: `${modKey}+click to multi-select` },
-					{ text: 'Drag near another node to snap-lock' },
+					{ text: 'Drag corner to resize' },
 					{ text: `${modKey}+C to copy contents` },
 					{ text: '1-6 to set color, 0 to clear' }
 				];
@@ -93,7 +93,7 @@
 		padding: var(--space-2) var(--space-3);
 		box-shadow: var(--shadow-md);
 		max-width: 280px;
-		opacity: 0.95;
+		opacity: var(--panel-opacity);
 	}
 
 	.tip {
