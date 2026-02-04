@@ -123,7 +123,7 @@ code block
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background-color: rgba(0, 0, 0, 0.5);
+		background-color: var(--overlay-bg);
 		z-index: 1000;
 	}
 

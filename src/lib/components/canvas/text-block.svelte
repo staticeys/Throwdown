@@ -133,7 +133,7 @@
 		height: 100%;
 		padding: var(--space-2);
 		font-family: var(--font-sans);
-		font-size: 14px;
+		font-size: var(--font-size-base);
 		line-height: 1.5;
 		color: var(--text-primary);
 		overflow: auto;
@@ -306,7 +306,7 @@
 	.text-rendered :global(.hashtag) {
 		color: var(--hashtag-text, var(--accent));
 		background: var(--hashtag-bg, var(--accent-muted));
-		padding: 0 4px;
+		padding: 0 var(--space-1);
 		border-radius: var(--radius-sm);
 	}
 
@@ -314,7 +314,7 @@
 	.text-rendered :global(.search-highlight) {
 		background: var(--highlight-bg, #fef08a);
 		color: inherit;
-		padding: 0 2px;
-		border-radius: 2px;
+		padding: 0 var(--space-0);
+		border-radius: var(--radius-sm);
 	}
 </style>

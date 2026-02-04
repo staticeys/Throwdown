@@ -99,7 +99,7 @@
 	}
 
 	.label-text {
-		padding: 2px 6px;
+		padding: var(--space-0) calc(var(--space-1) + var(--space-0));
 		background: var(--bg-surface);
 		border-radius: var(--radius-sm);
 		white-space: nowrap;
@@ -111,9 +111,9 @@
 	.label-input {
 		min-width: 80px;
 		max-width: 200px;
-		padding: 2px 6px;
+		padding: var(--space-0) calc(var(--space-1) + var(--space-0));
 		font-family: var(--font-sans);
-		font-size: 12px;
+		font-size: var(--font-size-xs);
 		font-weight: 500;
 		color: var(--text-primary);
 		background: var(--bg-surface);

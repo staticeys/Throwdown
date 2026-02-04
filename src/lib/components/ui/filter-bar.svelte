@@ -144,12 +144,12 @@
 	.tag-chip {
 		display: flex;
 		align-items: center;
-		gap: 2px;
-		padding: 2px var(--space-2);
+		gap: var(--space-0);
+		padding: var(--space-0) var(--space-2);
 		background: var(--accent-muted);
 		color: var(--accent);
 		border-radius: var(--radius-sm);
-		font-size: 12px;
+		font-size: var(--font-size-xs);
 		font-weight: 500;
 		white-space: nowrap;
 	}
@@ -163,7 +163,7 @@
 		padding: 0;
 		background: transparent;
 		border: none;
-		border-radius: 50%;
+		border-radius: var(--radius-full);
 		color: var(--accent);
 		cursor: pointer;
 		font-size: 10px;
@@ -183,7 +183,7 @@
 		border: none;
 		outline: none;
 		font-family: var(--font-sans);
-		font-size: 13px;
+		font-size: var(--font-size-sm);
 		color: var(--text-primary);
 	}
 
