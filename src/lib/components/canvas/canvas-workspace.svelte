@@ -6,7 +6,16 @@
 	import SelectionBox from './selection-box.svelte';
 
 	// Props
-	let { children } = $props<{ children?: import('svelte').Snippet }>();
+	let {
+		children,
+		onedgecontextmenu
+	} = $props<{
+		children?: import('svelte').Snippet;
+		onedgecontextmenu?: (e: MouseEvent, edgeId: string) => void;
+	}>();
+
+	// Edge renderer reference
+	let edgeRendererRef: EdgeRenderer;
 
 	// Local state for drag interactions
 	let isPanning = $state(false);
@@ -48,6 +57,14 @@
 			x: canvasX * viewport.zoom + viewport.x + rect.left,
 			y: canvasY * viewport.zoom + viewport.y + rect.top
 		};
+	}
+
+	// Start editing an edge label
+	export function startEditingEdge(edgeId: string): void {
+		const edge = canvasStore.getEdge(edgeId);
+		if (edge) {
+			edgeRendererRef?.startEditing(edge);
+		}
 	}
 
 	// Handle mouse down - start panning or box selection
@@ -249,14 +266,7 @@
 		// Skip other shortcuts if typing
 		if (isTyping) return;
 
-		// Cmd/Ctrl + Shift + L - Toggle link mode
-		if (e.code === 'KeyL' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
-			e.preventDefault();
-			canvasStore.toggleLinkMode();
-			return;
-		}
-
-		// L (without modifiers) - Link selected nodes (legacy behavior)
+		// L (without modifiers) - Link selected nodes
 		if (e.code === 'KeyL' && !e.ctrlKey && !e.metaKey) {
 			e.preventDefault();
 			canvasStore.linkSelectedNodes();
@@ -270,14 +280,10 @@
 			return;
 		}
 
-		// Escape - Exit link mode if active, otherwise clear selection
+		// Escape - Clear selection
 		if (e.code === 'Escape') {
 			e.preventDefault();
-			if (canvasStore.isLinkMode) {
-				canvasStore.exitLinkMode();
-			} else {
-				canvasStore.clearSelection();
-			}
+			canvasStore.clearSelection();
 			return;
 		}
 
@@ -403,7 +409,10 @@
 	<!-- Canvas content layer -->
 	<div class="canvas-content" style:transform>
 		<!-- Edges rendered below nodes -->
-		<EdgeRenderer />
+		<EdgeRenderer
+			bind:this={edgeRendererRef}
+			oncontextmenu={onedgecontextmenu}
+		/>
 
 		<!-- Nodes -->
 		{#if children}

@@ -21,7 +21,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div class="overlay-backdrop" onclick={onClose}>
-	<div class="overlay" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Keyboard shortcuts">
+	<div class="overlay" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Keyboard shortcuts" tabindex="-1">
 		<div class="overlay-header">
 			<h2>Keyboard Shortcuts</h2>
 			<button class="close-btn" onclick={onClose} title="Close">×</button>
@@ -58,9 +58,7 @@
 				<h3>Nodes</h3>
 				<dl>
 					<div class="shortcut"><dt><kbd>L</kbd></dt><dd>Link selected nodes</dd></div>
-					<div class="shortcut"><dt><kbd>{mod}</kbd> + <kbd>⇧</kbd> + <kbd>L</kbd></dt><dd>Toggle link mode</dd></div>
 					<div class="shortcut"><dt><kbd>{mod}</kbd> + <kbd>G</kbd></dt><dd>Group selected</dd></div>
-					<div class="shortcut"><dt><kbd>{isMac ? '⌥' : 'Alt'}</kbd> + drag</dt><dd>Unlock from neighbors</dd></div>
 				</dl>
 			</section>
 

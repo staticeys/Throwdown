@@ -17,7 +17,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div class="overlay-backdrop" onclick={onClose}>
-	<div class="overlay" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Markdown syntax help">
+	<div class="overlay" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Markdown syntax help" tabindex="-1">
 		<div class="overlay-header">
 			<h2>Markdown Syntax</h2>
 			<button class="close-btn" onclick={onClose} title="Close">×</button>
@@ -56,7 +56,7 @@
 			<section>
 				<h3>Links</h3>
 				<table><tbody>
-					<tr><td><code>[text](url)</code></td><td><a href="#" onclick={(e) => e.preventDefault()}>text</a></td></tr>
+					<tr><td><code>[text](url)</code></td><td><span class="example-link">text</span></td></tr>
 					<tr><td><code>https://example.com</code></td><td>Auto-linked URL</td></tr>
 				</tbody></table>
 			</section>
@@ -302,7 +302,7 @@ code block
 		border-top: 1px solid var(--border);
 	}
 
-	a {
+	.example-link {
 		color: var(--accent);
 		text-decoration: underline;
 	}
