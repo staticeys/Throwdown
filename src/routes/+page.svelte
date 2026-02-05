@@ -13,7 +13,7 @@
 	import CanvasTabs from '$lib/components/ui/canvas-tabs.svelte';
 	import TipsOverlay from '$lib/components/ui/tips-overlay.svelte';
 	import type { ContextMenuItem } from '$lib/components/ui/context-menu.svelte';
-	import { isTextNode, isLinkNode, isGroupNode } from '$lib/types/canvas';
+	import { isTextNode, isLinkNode, isGroupNode, COLOR_PRESETS } from '$lib/types/canvas';
 	import type { TextNode, LinkNode, GroupNode } from '$lib/types/canvas';
 	import { parseClipboard } from '$lib/utils/paste-detection';
 	import { icons } from '$lib/components/icons';
@@ -191,6 +191,17 @@
 			});
 		}
 
+		// Determine active color: highlight only if all selected nodes share the same color
+		const selectedNodes = canvasStore.selectedNodes;
+		const firstColor = selectedNodes[0]?.color;
+		const sharedColor = selectedNodes.every(n => n.color === firstColor) ? firstColor : null;
+		const nodeColorItems = Object.entries(COLOR_PRESETS).map(([key, hex]) => ({
+			hex,
+			value: Number(key) as number | undefined,
+			active: sharedColor === Number(key)
+		}));
+		nodeColorItems.unshift({ hex: '', value: undefined, active: sharedColor === undefined });
+
 		menuItems.push(
 			{ label: '', icon: '', action: () => {}, separator: true },
 			{
@@ -198,6 +209,16 @@
 				icon: icons.arrow,
 				action: () => canvasStore.linkSelectedNodes(),
 				disabled: !hasMultiple
+			},
+			{ label: '', icon: '', action: () => {}, separator: true },
+			{
+				label: 'Color',
+				icon: '',
+				action: () => {},
+				colors: nodeColorItems,
+				onColorSelect: (value: number | undefined) => {
+					canvasStore.setSelectedNodesColor(value as any);
+				}
 			},
 			{ label: '', icon: '', action: () => {}, separator: true },
 			{
@@ -215,6 +236,15 @@
 	function getEdgeMenuItems(edgeId: string): ContextMenuItem[] {
 		const edge = canvasStore.getEdge(edgeId);
 		if (!edge) return [];
+
+		// Build color row with 6 presets + default
+		const currentColor = edge.color;
+		const colorItems = Object.entries(COLOR_PRESETS).map(([key, hex]) => ({
+			hex,
+			value: Number(key) as number | undefined,
+			active: currentColor === Number(key)
+		}));
+		colorItems.unshift({ hex: '', value: undefined, active: currentColor === undefined });
 
 		return [
 			{
@@ -242,6 +272,16 @@
 					});
 				},
 				checked: edge.toEnd !== 'none'
+			},
+			{ label: '', icon: '', action: () => {}, separator: true },
+			{
+				label: 'Color',
+				icon: '',
+				action: () => {},
+				colors: colorItems,
+				onColorSelect: (value: number | undefined) => {
+					canvasStore.updateEdge(edgeId, { color: value as any });
+				}
 			},
 			{ label: '', icon: '', action: () => {}, separator: true },
 			{

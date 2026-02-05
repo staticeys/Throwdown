@@ -359,7 +359,7 @@
 						class="edge-label-container"
 						ondblclick={(e) => handleDoubleClick(edge, e)}
 					>
-						<div class="edge-label">
+						<div class="edge-label" style:color={edge.color ? color : ''}>
 							{edge.label}
 						</div>
 					</foreignObject>

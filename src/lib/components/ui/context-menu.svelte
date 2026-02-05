@@ -21,6 +21,9 @@
 		disabled?: boolean;
 		separator?: boolean;
 		checked?: boolean;
+		// Color row: renders a row of color dots instead of a normal item
+		colors?: { hex: string; value: number | undefined; active: boolean }[];
+		onColorSelect?: (value: number | undefined) => void;
 	}
 
 	// Adjust position to keep menu in viewport
@@ -92,7 +95,26 @@
 		tabindex="-1"
 	>
 		{#each items as item}
-			{#if item.separator}
+			{#if item.colors}
+				<div class="color-row" role="menuitem">
+					{#each item.colors as c}
+						<button
+							class="color-dot"
+							class:active={c.active}
+							class:no-color={c.value === undefined}
+							style:background-color={c.value !== undefined ? c.hex : ''}
+							onclick={() => { item.onColorSelect?.(c.value); onClose(); }}
+							title={c.value !== undefined ? item.label : 'Default'}
+						>
+							{#if c.value === undefined}
+								<svg viewBox="0 0 16 16" width="16" height="16">
+									<line x1="3" y1="3" x2="13" y2="13" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" />
+								</svg>
+							{/if}
+						</button>
+					{/each}
+				</div>
+			{:else if item.separator}
 				<div class="separator"></div>
 			{:else}
 				<button
@@ -178,5 +200,42 @@
 		height: 1px;
 		margin: var(--space-1) var(--space-2);
 		background-color: var(--border);
+	}
+
+	.color-row {
+		display: flex;
+		gap: var(--space-1);
+		padding: var(--space-2) var(--space-3);
+		justify-content: center;
+	}
+
+	.color-dot {
+		width: 18px;
+		height: 18px;
+		border-radius: var(--radius-full);
+		border: 2px solid transparent;
+		cursor: pointer;
+		transition: transform var(--transition-fast), border-color var(--transition-fast);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+	}
+
+	.color-dot:hover {
+		transform: scale(1.2);
+	}
+
+	.color-dot.active {
+		border-color: var(--text-primary);
+	}
+
+	.color-dot.no-color {
+		background-color: var(--bg-surface);
+		border-color: var(--border-strong);
+	}
+
+	.color-dot.no-color.active {
+		border-color: var(--text-primary);
 	}
 </style>
