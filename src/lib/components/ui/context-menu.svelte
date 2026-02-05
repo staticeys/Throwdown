@@ -22,8 +22,8 @@
 		separator?: boolean;
 		checked?: boolean;
 		// Color row: renders a row of color dots instead of a normal item
-		colors?: { hex: string; value: number | undefined; active: boolean }[];
-		onColorSelect?: (value: number | undefined) => void;
+		colors?: { hex: string; value: string | undefined; active: boolean }[];
+		onColorSelect?: (value: string | undefined) => void;
 	}
 
 	// Adjust position to keep menu in viewport

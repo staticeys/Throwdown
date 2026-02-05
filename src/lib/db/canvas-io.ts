@@ -6,7 +6,9 @@ function validateCanvasFile(data: unknown): data is CanvasFile {
 
 	const obj = data as Record<string, unknown>;
 
-	// nodes and edges are required (can be empty arrays)
+	// nodes and edges are optional per spec, default to empty arrays
+	if (obj.nodes === undefined) obj.nodes = [];
+	if (obj.edges === undefined) obj.edges = [];
 	if (!Array.isArray(obj.nodes)) return false;
 	if (!Array.isArray(obj.edges)) return false;
 
@@ -34,13 +36,32 @@ function validateCanvasFile(data: unknown): data is CanvasFile {
 	return true;
 }
 
+// Sanitize nodes/edges for spec-compliant export:
+// - Round x, y, width, height to integers (spec requires integer)
+// - Coerce numeric color values to strings (spec requires string)
+function sanitizeForExport(canvas: CanvasFile): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
+	const nodes = canvas.nodes.map(node => {
+		const sanitized = { ...node };
+		sanitized.x = Math.round(sanitized.x);
+		sanitized.y = Math.round(sanitized.y);
+		sanitized.width = Math.round(sanitized.width);
+		sanitized.height = Math.round(sanitized.height);
+		if (sanitized.color !== undefined) {
+			sanitized.color = String(sanitized.color);
+		}
+		return sanitized;
+	});
+	const edges = canvas.edges.map(edge => {
+		if (edge.color === undefined) return edge;
+		return { ...edge, color: String(edge.color) };
+	});
+	return { nodes, edges };
+}
+
 // Export canvas to JSON Canvas format
 export function exportCanvas(canvas: CanvasFile): string {
-	// Create a clean copy without extension properties for standard export
-	const exported: CanvasFile = {
-		nodes: canvas.nodes,
-		edges: canvas.edges
-	};
+	const { nodes, edges } = sanitizeForExport(canvas);
+	const exported: CanvasFile = { nodes, edges };
 
 	// Include extensions if present
 	if (canvas['x-viewport']) {
@@ -50,15 +71,13 @@ export function exportCanvas(canvas: CanvasFile): string {
 		exported['x-metadata'] = canvas['x-metadata'];
 	}
 
-	return JSON.stringify(exported, null, 2);
+	return JSON.stringify(exported, null, '\t');
 }
 
 // Export canvas to standard JSON Canvas (without extensions)
 export function exportCanvasStandard(canvas: CanvasFile): string {
-	return JSON.stringify({
-		nodes: canvas.nodes,
-		edges: canvas.edges
-	}, null, 2);
+	const { nodes, edges } = sanitizeForExport(canvas);
+	return JSON.stringify({ nodes, edges }, null, '\t');
 }
 
 // Import canvas from JSON string
@@ -73,6 +92,16 @@ export function importCanvas(json: string): CanvasFile {
 
 	if (!validateCanvasFile(data)) {
 		throw new Error('Invalid canvas file format');
+	}
+
+	// Filter out unsupported node types (e.g. 'file') and their orphaned edges
+	const supportedTypes = new Set(['text', 'link', 'group']);
+	const droppedIds = new Set(
+		data.nodes.filter(n => !supportedTypes.has(n.type)).map(n => n.id)
+	);
+	if (droppedIds.size > 0) {
+		data.nodes = data.nodes.filter(n => supportedTypes.has(n.type));
+		data.edges = data.edges.filter(e => !droppedIds.has(e.fromNode) && !droppedIds.has(e.toNode));
 	}
 
 	return data;

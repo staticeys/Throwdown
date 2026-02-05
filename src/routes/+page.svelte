@@ -197,8 +197,8 @@
 		const sharedColor = selectedNodes.every(n => n.color === firstColor) ? firstColor : null;
 		const nodeColorItems = Object.entries(COLOR_PRESETS).map(([key, hex]) => ({
 			hex,
-			value: Number(key) as number | undefined,
-			active: sharedColor === Number(key)
+			value: key as string | undefined,
+			active: sharedColor === key
 		}));
 		nodeColorItems.unshift({ hex: '', value: undefined, active: sharedColor === undefined });
 
@@ -216,8 +216,8 @@
 				icon: '',
 				action: () => {},
 				colors: nodeColorItems,
-				onColorSelect: (value: number | undefined) => {
-					canvasStore.setSelectedNodesColor(value as any);
+				onColorSelect: (value: string | undefined) => {
+					canvasStore.setSelectedNodesColor(value);
 				}
 			},
 			{ label: '', icon: '', action: () => {}, separator: true },
@@ -241,8 +241,8 @@
 		const currentColor = edge.color;
 		const colorItems = Object.entries(COLOR_PRESETS).map(([key, hex]) => ({
 			hex,
-			value: Number(key) as number | undefined,
-			active: currentColor === Number(key)
+			value: key as string | undefined,
+			active: currentColor === key
 		}));
 		colorItems.unshift({ hex: '', value: undefined, active: currentColor === undefined });
 
@@ -279,8 +279,8 @@
 				icon: '',
 				action: () => {},
 				colors: colorItems,
-				onColorSelect: (value: number | undefined) => {
-					canvasStore.updateEdge(edgeId, { color: value as any });
+				onColorSelect: (value: string | undefined) => {
+					canvasStore.updateEdge(edgeId, { color: value });
 				}
 			},
 			{ label: '', icon: '', action: () => {}, separator: true },

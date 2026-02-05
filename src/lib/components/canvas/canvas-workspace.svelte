@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { canvasStore } from '$lib/stores/canvas.svelte';
-	import { isTextNode, isLinkNode, isGroupNode } from '$lib/types/canvas';
+	import { isTextNode, isLinkNode, isGroupNode, type NodeColor } from '$lib/types/canvas';
 	import EdgeRenderer from './edge-renderer.svelte';
 	import AlignmentGuides from './alignment-guides.svelte';
 	import SelectionBox from './selection-box.svelte';
@@ -326,13 +326,13 @@
 
 		// Number keys 1-6 - Set node color (only if nodes are selected)
 		if (canvasStore.selection.length > 0) {
-			const colorMap: Record<string, 1 | 2 | 3 | 4 | 5 | 6> = {
-				'Digit1': 1,
-				'Digit2': 2,
-				'Digit3': 3,
-				'Digit4': 4,
-				'Digit5': 5,
-				'Digit6': 6
+			const colorMap: Record<string, NodeColor> = {
+				'Digit1': '1',
+				'Digit2': '2',
+				'Digit3': '3',
+				'Digit4': '4',
+				'Digit5': '5',
+				'Digit6': '6'
 			};
 			if (e.code in colorMap) {
 				e.preventDefault();

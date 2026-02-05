@@ -2,7 +2,7 @@
 
 export type Side = 'top' | 'right' | 'bottom' | 'left';
 export type EndType = 'none' | 'arrow';
-export type NodeColor = 1 | 2 | 3 | 4 | 5 | 6 | string;
+export type NodeColor = '1' | '2' | '3' | '4' | '5' | '6' | string;
 
 // Base node properties (JSON Canvas spec)
 export interface CanvasNodeBase {
@@ -84,21 +84,20 @@ export const DEFAULT_NODE_WIDTH = 200;
 export const DEFAULT_NODE_HEIGHT = 100;
 export const DEFAULT_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 };
 
-// Color presets (JSON Canvas spec: 1-6)
-export const COLOR_PRESETS: Record<number, string> = {
-	1: '#ef4444', // red
-	2: '#f97316', // orange
-	3: '#eab308', // yellow
-	4: '#22c55e', // green
-	5: '#06b6d4', // cyan
-	6: '#8b5cf6'  // purple
+// Color presets (JSON Canvas spec: "1"-"6" as strings)
+export const COLOR_PRESETS: Record<string, string> = {
+	'1': '#ef4444', // red
+	'2': '#f97316', // orange
+	'3': '#eab308', // yellow
+	'4': '#22c55e', // green
+	'5': '#06b6d4', // cyan
+	'6': '#8b5cf6'  // purple
 };
 
-// Helper to resolve color value
+// Helper to resolve color value (preset string "1"-"6" → hex, or pass through hex values)
 export function resolveColor(color: NodeColor | undefined): string | undefined {
 	if (color === undefined) return undefined;
-	if (typeof color === 'string') return color;
-	return COLOR_PRESETS[color];
+	return COLOR_PRESETS[color] ?? color;
 }
 
 // Type guards
