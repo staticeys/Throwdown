@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { icons } from '$lib/components/icons';
-	import { downloadCanvas, openCanvasFile } from '$lib/db/canvas-io';
+	import { downloadCanvas, downloadHtml, openCanvasFile, exportPdf } from '$lib/db/canvas-io';
 	import FilterBar from './filter-bar.svelte';
 	import HotkeysOverlay from './hotkeys-overlay.svelte';
 	import MarkdownHelpOverlay from './markdown-help-overlay.svelte';
@@ -21,6 +21,7 @@
 	let showHotkeys = $state(false);
 	let showMarkdownHelp = $state(false);
 	let showAddMenu = $state(false);
+	let showExportMenu = $state(false);
 
 	// Handle add menu item click
 	function handleAddMenuItem(action: () => void) {
@@ -28,11 +29,22 @@
 		showAddMenu = false;
 	}
 
-	// Handle export
-	function handleExport() {
+	// Handle export menu item
+	function handleExportMenuItem(type: 'canvas' | 'html' | 'pdf') {
+		showExportMenu = false;
 		const canvas = canvasStore.activeCanvas;
-		if (canvas) {
-			downloadCanvas(canvas);
+		if (!canvas) return;
+
+		switch (type) {
+			case 'canvas':
+				downloadCanvas(canvas);
+				break;
+			case 'html':
+				downloadHtml(canvas);
+				break;
+			case 'pdf':
+				exportPdf(canvas, canvas['x-metadata']?.name);
+				break;
 		}
 	}
 
@@ -93,13 +105,37 @@
 		>
 			{icons.import}
 		</button>
+	</div>
+
+	<!-- Export dropdown -->
+	<div class="toolbar-group export-menu-container">
 		<button
 			class="toolbar-btn"
-			onclick={handleExport}
+			class:active={showExportMenu}
+			onclick={() => (showExportMenu = !showExportMenu)}
 			title="Export Canvas"
 		>
 			{icons.export}
 		</button>
+		{#if showExportMenu}
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<div class="add-menu-backdrop" onclick={() => (showExportMenu = false)}></div>
+			<div class="add-menu export-menu">
+				<button class="add-menu-item" onclick={() => handleExportMenuItem('canvas')}>
+					<span class="add-menu-icon">◇</span>
+					<span>Canvas</span>
+				</button>
+				<button class="add-menu-item" onclick={() => handleExportMenuItem('html')}>
+					<span class="add-menu-icon">⧉</span>
+					<span>HTML</span>
+				</button>
+				<button class="add-menu-item" onclick={() => handleExportMenuItem('pdf')}>
+					<span class="add-menu-icon">▤</span>
+					<span>PDF</span>
+				</button>
+			</div>
+		{/if}
 	</div>
 
 	<div class="toolbar-divider"></div>
@@ -189,9 +225,14 @@
 		flex: 1;
 	}
 
-	/* Add menu dropdown */
-	.add-menu-container {
+	/* Dropdown menus */
+	.add-menu-container,
+	.export-menu-container {
 		position: relative;
+	}
+
+	.export-menu {
+		min-width: 160px;
 	}
 
 	.toolbar-btn.active {

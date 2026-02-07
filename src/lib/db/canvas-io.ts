@@ -1,4 +1,6 @@
 import type { CanvasFile, CanvasNode, CanvasEdge } from '$lib/types/canvas';
+import { generateHtml } from './export-html';
+export { exportPdf } from './export-pdf';
 
 // Validate that an object is a valid CanvasFile
 function validateCanvasFile(data: unknown): data is CanvasFile {
@@ -118,6 +120,26 @@ export function downloadCanvas(canvas: CanvasFile, filename?: string): void {
 	const a = document.createElement('a');
 	a.href = url;
 	a.download = `${safeName}.canvas`;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+
+// Download canvas as self-contained HTML file
+export function downloadHtml(canvas: CanvasFile, filename?: string): void {
+	const name = filename ?? canvas['x-metadata']?.name ?? 'canvas';
+	const safeName = name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+	const html = generateHtml(canvas, {
+		title: name,
+		defaultTheme: 'auto'
+	});
+	const blob = new Blob([html], { type: 'text/html' });
+	const url = URL.createObjectURL(blob);
+
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = `${safeName}.html`;
 	document.body.appendChild(a);
 	a.click();
 	document.body.removeChild(a);
