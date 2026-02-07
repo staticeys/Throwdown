@@ -1,7 +1,16 @@
 <script lang="ts">
 	import { canvasStore } from '$lib/stores/canvas.svelte';
-	import type { CanvasEdge, CanvasNode, Side } from '$lib/types/canvas';
-	import { resolveColor } from '$lib/types/canvas';
+	import type { CanvasEdge } from '$lib/types/canvas';
+	import {
+		buildNodeMap,
+		getEdgePath as getEdgePathShared,
+		getArrowTransform as getArrowTransformShared,
+		getArrowStartTransform as getArrowStartTransformShared,
+		getEdgeMidpoint as getEdgeMidpointShared,
+		getEdgeColor,
+		hasArrowEnd,
+		hasArrowStart
+	} from '$lib/db/export-shared';
 
 	// Props for dispatching events to parent
 	let {
@@ -20,6 +29,9 @@
 		)
 	);
 
+	// Build node lookup map for edge geometry calculations
+	let nodeMap = $derived(buildNodeMap(canvasStore.nodes));
+
 	// Track hovered edge for delete UI
 	let hoveredEdgeId = $state<string | null>(null);
 
@@ -29,160 +41,21 @@
 	// svelte-ignore non_reactive_update
 	let inputEl: HTMLInputElement;
 
-	// Get node by ID
-	function getNode(id: string): CanvasNode | undefined {
-		return canvasStore.nodes.find(n => n.id === id);
-	}
-
-	// Calculate connection point on a node's side
-	function getConnectionPoint(
-		node: CanvasNode,
-		side: Side | undefined,
-		otherNode: CanvasNode
-	): { x: number; y: number } {
-		const centerX = node.x + node.width / 2;
-		const centerY = node.y + node.height / 2;
-
-		// If side is specified, use it
-		if (side) {
-			switch (side) {
-				case 'top':
-					return { x: centerX, y: node.y };
-				case 'bottom':
-					return { x: centerX, y: node.y + node.height };
-				case 'left':
-					return { x: node.x, y: centerY };
-				case 'right':
-					return { x: node.x + node.width, y: centerY };
-			}
-		}
-
-		// Auto-calculate best side based on other node position
-		const otherCenterX = otherNode.x + otherNode.width / 2;
-		const otherCenterY = otherNode.y + otherNode.height / 2;
-
-		const dx = otherCenterX - centerX;
-		const dy = otherCenterY - centerY;
-
-		// Determine which side to connect from
-		if (Math.abs(dx) > Math.abs(dy)) {
-			// Horizontal connection
-			if (dx > 0) {
-				return { x: node.x + node.width, y: centerY };
-			} else {
-				return { x: node.x, y: centerY };
-			}
-		} else {
-			// Vertical connection
-			if (dy > 0) {
-				return { x: centerX, y: node.y + node.height };
-			} else {
-				return { x: centerX, y: node.y };
-			}
-		}
-	}
-
-	// Calculate edge path data
+	// Wrappers that pass nodeMap through
 	function getEdgePath(edge: CanvasEdge): string | null {
-		const fromNode = getNode(edge.fromNode);
-		const toNode = getNode(edge.toNode);
-
-		if (!fromNode || !toNode) return null;
-
-		const from = getConnectionPoint(fromNode, edge.fromSide, toNode);
-		const to = getConnectionPoint(toNode, edge.toSide, fromNode);
-
-		// Calculate control points for a bezier curve
-		const dx = to.x - from.x;
-		const dy = to.y - from.y;
-		const distance = Math.sqrt(dx * dx + dy * dy);
-		const curvature = Math.min(distance * 0.3, 50);
-
-		// Determine curve direction based on connection points
-		let cp1x = from.x;
-		let cp1y = from.y;
-		let cp2x = to.x;
-		let cp2y = to.y;
-
-		// Adjust control points based on which sides are connected
-		if (Math.abs(dx) > Math.abs(dy)) {
-			// Mostly horizontal
-			cp1x = from.x + (dx > 0 ? curvature : -curvature);
-			cp2x = to.x + (dx > 0 ? -curvature : curvature);
-		} else {
-			// Mostly vertical
-			cp1y = from.y + (dy > 0 ? curvature : -curvature);
-			cp2y = to.y + (dy > 0 ? -curvature : curvature);
-		}
-
-		return `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${to.x} ${to.y}`;
+		return getEdgePathShared(edge, nodeMap);
 	}
 
-	// Calculate arrow marker position and rotation
 	function getArrowTransform(edge: CanvasEdge): string | null {
-		const fromNode = getNode(edge.fromNode);
-		const toNode = getNode(edge.toNode);
-
-		if (!fromNode || !toNode) return null;
-
-		const to = getConnectionPoint(toNode, edge.toSide, fromNode);
-		const from = getConnectionPoint(fromNode, edge.fromSide, toNode);
-
-		// Calculate angle for arrow rotation
-		const dx = to.x - from.x;
-		const dy = to.y - from.y;
-		const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-		return `translate(${to.x}, ${to.y}) rotate(${angle})`;
+		return getArrowTransformShared(edge, nodeMap);
 	}
 
-	// Calculate arrow transform for start arrow (reversed direction)
 	function getArrowStartTransform(edge: CanvasEdge): string | null {
-		const fromNode = getNode(edge.fromNode);
-		const toNode = getNode(edge.toNode);
-
-		if (!fromNode || !toNode) return null;
-
-		const from = getConnectionPoint(fromNode, edge.fromSide, toNode);
-		const to = getConnectionPoint(toNode, edge.toSide, fromNode);
-
-		// Calculate angle pointing away from the edge (reversed)
-		const dx = from.x - to.x;
-		const dy = from.y - to.y;
-		const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-		return `translate(${from.x}, ${from.y}) rotate(${angle})`;
+		return getArrowStartTransformShared(edge, nodeMap);
 	}
 
-	// Get edge color
-	function getEdgeColor(edge: CanvasEdge): string {
-		return resolveColor(edge.color) ?? 'var(--text-muted)';
-	}
-
-	// Check if edge should show arrow at end
-	function hasArrowEnd(edge: CanvasEdge): boolean {
-		return edge.toEnd !== 'none';
-	}
-
-	// Check if edge should show arrow at start
-	function hasArrowStart(edge: CanvasEdge): boolean {
-		return edge.fromEnd === 'arrow';
-	}
-
-	// Calculate midpoint of edge for delete button and label
 	function getEdgeMidpoint(edge: CanvasEdge): { x: number; y: number } | null {
-		const fromNode = getNode(edge.fromNode);
-		const toNode = getNode(edge.toNode);
-
-		if (!fromNode || !toNode) return null;
-
-		const from = getConnectionPoint(fromNode, edge.fromSide, toNode);
-		const to = getConnectionPoint(toNode, edge.toSide, fromNode);
-
-		return {
-			x: (from.x + to.x) / 2,
-			y: (from.y + to.y) / 2
-		};
+		return getEdgeMidpointShared(edge, nodeMap);
 	}
 
 	// Handle context menu
