@@ -138,55 +138,70 @@
 	}
 </script>
 
-{#if allNodes.length > 0}
-	<div class="minimap-wrapper">
+<div class="minimap-wrapper">
+	{#if allNodes.length > 0}
 		<button
 			class="minimap-toggle"
 			onclick={() => { collapsed = !collapsed; }}
 			title={collapsed ? 'Show Minimap' : 'Hide Minimap'}
 		>◱</button>
+	{/if}
 
-		{#if !collapsed}
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<div
-				class="minimap"
-				bind:this={minimapEl}
-				onmousedown={handleMouseDown}
-				style:width="{MINIMAP_WIDTH}px"
-				style:height="{MINIMAP_HEIGHT}px"
-			>
-				<!-- Node rectangles -->
-				{#each minimapNodes as node (node.id)}
-					<div
-						class="minimap-node"
-						class:minimap-node-group={node.isGroup}
-						class:minimap-node-selected={node.isSelected}
-						style:left="{node.x}px"
-						style:top="{node.y}px"
-						style:width="{node.width}px"
-						style:height="{node.height}px"
-						style:background-color={node.isGroup ? 'transparent' : node.color}
-						style:border-color={node.isGroup ? node.color : 'transparent'}
-					></div>
-				{/each}
-
-				<!-- Viewport indicator -->
+	{#if !collapsed && allNodes.length > 0}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="minimap"
+			bind:this={minimapEl}
+			onmousedown={handleMouseDown}
+			style:width="{MINIMAP_WIDTH}px"
+			style:height="{MINIMAP_HEIGHT}px"
+		>
+			<!-- Node rectangles -->
+			{#each minimapNodes as node (node.id)}
 				<div
-					class="minimap-viewport"
-					style:left="{viewportRect.x}px"
-					style:top="{viewportRect.y}px"
-					style:width="{viewportRect.width}px"
-					style:height="{viewportRect.height}px"
+					class="minimap-node"
+					class:minimap-node-group={node.isGroup}
+					class:minimap-node-selected={node.isSelected}
+					style:left="{node.x}px"
+					style:top="{node.y}px"
+					style:width="{node.width}px"
+					style:height="{node.height}px"
+					style:background-color={node.isGroup ? 'transparent' : node.color}
+					style:border-color={node.isGroup ? node.color : 'transparent'}
 				></div>
-			</div>
-		{/if}
+			{/each}
+
+			<!-- Viewport indicator -->
+			<div
+				class="minimap-viewport"
+				style:left="{viewportRect.x}px"
+				style:top="{viewportRect.y}px"
+				style:width="{viewportRect.width}px"
+				style:height="{viewportRect.height}px"
+			></div>
+		</div>
+	{/if}
+
+	<!-- Zoom controls -->
+	<div class="zoom-controls">
+		<button
+			class="zoom-btn"
+			onclick={() => canvasStore.zoom(0.8)}
+			title="Zoom Out"
+		>−</button>
+		<span class="zoom-value">{Math.round(viewport.zoom * 100)}%</span>
+		<button
+			class="zoom-btn"
+			onclick={() => canvasStore.zoom(1.2)}
+			title="Zoom In"
+		>+</button>
 	</div>
-{/if}
+</div>
 
 <style>
 	.minimap-wrapper {
 		position: absolute;
-		bottom: calc(var(--space-3) + 32px + var(--space-2));
+		bottom: var(--space-3);
 		right: var(--space-3);
 		display: flex;
 		flex-direction: column;
@@ -246,8 +261,52 @@
 	.minimap-viewport {
 		position: absolute;
 		border: 1.5px solid var(--accent);
-		background-color: rgba(59, 130, 246, 0.08);
+		background-color: color-mix(in srgb, var(--accent) 8%, transparent);
 		border-radius: 1px;
 		pointer-events: none;
+	}
+
+	.zoom-controls {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: var(--space-1);
+		background-color: var(--bg-surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		user-select: none;
+	}
+
+	.zoom-value {
+		min-width: 3.5ch;
+		font-family: var(--font-mono);
+		font-size: 12px;
+		color: var(--text-secondary);
+		text-align: center;
+	}
+
+	.zoom-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		padding: 0;
+		font-size: 14px;
+		color: var(--text-secondary);
+		background: transparent;
+		border: none;
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.zoom-btn:hover {
+		color: var(--text-primary);
+		background-color: var(--bg-elevated);
+	}
+
+	.zoom-btn:active {
+		background-color: var(--border);
 	}
 </style>

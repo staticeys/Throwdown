@@ -52,7 +52,7 @@
 					{ text: '1-6 to set color, 0 to clear' }
 				];
 			case 'editing':
-				return [{ text: 'Format with Markdown (see ? in toolbar)' }];
+				return [{ text: 'Format with Markdown (see ? for help)' }];
 			default:
 				return [];
 		}
