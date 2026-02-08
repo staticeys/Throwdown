@@ -69,9 +69,8 @@
 	}
 
 	function handleBlur(e: FocusEvent) {
-		// Check if focus is moving within the filter bar
 		const relatedTarget = e.relatedTarget as HTMLElement | null;
-		if (relatedTarget?.closest('.filter-bar')) {
+		if (relatedTarget?.closest('.filter-bar') || relatedTarget?.closest('.canvas-toolbar')) {
 			return;
 		}
 		showSuggestions = false;

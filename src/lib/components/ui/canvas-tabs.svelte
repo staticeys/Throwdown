@@ -30,10 +30,6 @@
 		}
 	}
 
-	// Create new canvas
-	function handleNewCanvas() {
-		canvasStore.createNewCanvas('Untitled');
-	}
 </script>
 
 <div class="canvas-tabs">
@@ -78,14 +74,6 @@
 			</div>
 		{/each}
 	</div>
-
-	<button
-		class="new-tab-btn"
-		onclick={handleNewCanvas}
-		title="New Canvas"
-	>
-		{icons.add}
-	</button>
 </div>
 
 <style>
@@ -95,7 +83,6 @@
 		gap: var(--space-1);
 		padding: var(--space-1) var(--space-2);
 		background-color: var(--bg-app);
-		border-bottom: 1px solid var(--border);
 		overflow: hidden;
 	}
 
@@ -179,25 +166,4 @@
 		background-color: var(--bg-elevated);
 	}
 
-	.new-tab-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 24px;
-		height: 24px;
-		padding: 0;
-		font-size: 14px;
-		color: var(--text-secondary);
-		background: transparent;
-		border: none;
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		flex-shrink: 0;
-		transition: all var(--transition-fast);
-	}
-
-	.new-tab-btn:hover {
-		color: var(--text-primary);
-		background-color: var(--bg-surface);
-	}
 </style>

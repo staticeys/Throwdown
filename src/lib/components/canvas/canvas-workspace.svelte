@@ -445,28 +445,8 @@
 		{/if}
 	</div>
 
-	<!-- Minimap -->
+	<!-- Minimap + zoom controls -->
 	<CanvasMinimap {containerWidth} {containerHeight} />
-
-	<!-- Zoom controls -->
-	<div class="zoom-controls">
-		<button
-			class="zoom-btn"
-			onclick={() => canvasStore.zoom(0.8)}
-			title="Zoom Out"
-		>−</button>
-		<span class="zoom-value">{Math.round(viewport.zoom * 100)}%</span>
-		<button
-			class="zoom-btn"
-			onclick={() => canvasStore.zoom(1.2)}
-			title="Zoom In"
-		>+</button>
-		<button
-			class="zoom-btn"
-			onclick={() => canvasStore.resetViewport()}
-			title="Center View"
-		>⊡</button>
-	</div>
 </div>
 
 <style>
@@ -486,50 +466,4 @@
 		transform-origin: 0 0;
 	}
 
-	.zoom-controls {
-		position: absolute;
-		bottom: var(--space-3);
-		right: var(--space-3);
-		display: flex;
-		align-items: center;
-		gap: var(--space-1);
-		padding: var(--space-1);
-		background-color: var(--bg-surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		user-select: none;
-	}
-
-	.zoom-value {
-		min-width: 3.5ch;
-		font-family: var(--font-mono);
-		font-size: 12px;
-		color: var(--text-secondary);
-		text-align: center;
-	}
-
-	.zoom-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 20px;
-		height: 20px;
-		padding: 0;
-		font-size: 14px;
-		color: var(--text-secondary);
-		background: transparent;
-		border: none;
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		transition: all var(--transition-fast);
-	}
-
-	.zoom-btn:hover {
-		color: var(--text-primary);
-		background-color: var(--bg-elevated);
-	}
-
-	.zoom-btn:active {
-		background-color: var(--border);
-	}
 </style>

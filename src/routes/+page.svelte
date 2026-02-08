@@ -8,10 +8,12 @@
 	import LinkBlock from '$lib/components/canvas/link-block.svelte';
 	import CanvasRef from '$lib/components/canvas/canvas-ref.svelte';
 	import ContextMenu from '$lib/components/ui/context-menu.svelte';
-	import Toolbar from '$lib/components/ui/toolbar.svelte';
+	import CanvasToolbar from '$lib/components/ui/canvas-toolbar.svelte';
+	import HelpDropdown from '$lib/components/ui/help-dropdown.svelte';
 	import ThemeToggle from '$lib/components/ui/theme-toggle.svelte';
 	import CanvasTabs from '$lib/components/ui/canvas-tabs.svelte';
 	import TipsOverlay from '$lib/components/ui/tips-overlay.svelte';
+	import { downloadCanvas, downloadHtml, openCanvasFile, exportPdf } from '$lib/db/canvas-io';
 	import type { ContextMenuItem } from '$lib/components/ui/context-menu.svelte';
 	import { isTextNode, isLinkNode, isGroupNode, COLOR_PRESETS } from '$lib/types/canvas';
 	import type { TextNode, LinkNode, GroupNode } from '$lib/types/canvas';
@@ -31,6 +33,36 @@
 
 	// Track last mouse position for paste
 	let lastMousePos = $state({ x: 0, y: 0 });
+
+	// Header export dropdown state
+	let showExportMenu = $state(false);
+
+	// Import canvas file
+	async function handleImport() {
+		const canvas = await openCanvasFile();
+		if (canvas) {
+			canvasStore.importCanvasData(canvas);
+		}
+	}
+
+	// Export canvas
+	function handleExport(type: 'canvas' | 'html' | 'pdf') {
+		showExportMenu = false;
+		const canvas = canvasStore.activeCanvas;
+		if (!canvas) return;
+
+		switch (type) {
+			case 'canvas':
+				downloadCanvas(canvas);
+				break;
+			case 'html':
+				downloadHtml(canvas);
+				break;
+			case 'pdf':
+				exportPdf(canvas, canvas['x-metadata']?.name);
+				break;
+		}
+	}
 
 	// Initialize stores on mount
 	onMount(async () => {
@@ -401,20 +433,58 @@
 	{#if canvasStore.isLoading}
 		<div class="loading">Loading...</div>
 	{:else}
-		<!-- Header with tabs and theme toggle -->
+		<!-- Header -->
 		<header class="app-header">
+			<button
+				class="header-btn"
+				onclick={() => canvasStore.createNewCanvas('Untitled')}
+				title="New Canvas"
+			>
+				{icons.add}
+			</button>
+
 			<CanvasTabs />
+
+			<button class="header-btn" onclick={handleImport} title="Import Canvas">
+				{icons.import}
+			</button>
+
+			<div class="header-dropdown">
+				<button
+					class="header-btn"
+					class:active={showExportMenu}
+					onclick={() => (showExportMenu = !showExportMenu)}
+					title="Export Canvas"
+				>
+					{icons.export}
+				</button>
+				{#if showExportMenu}
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<div class="dropdown-backdrop" onclick={() => (showExportMenu = false)}></div>
+					<div class="dropdown-menu">
+						<button class="dropdown-item" onclick={() => handleExport('canvas')}>
+							<span class="dropdown-icon">◇</span>
+							<span>Canvas</span>
+						</button>
+						<button class="dropdown-item" onclick={() => handleExport('html')}>
+							<span class="dropdown-icon">⧉</span>
+							<span>HTML</span>
+						</button>
+						<button class="dropdown-item" onclick={() => handleExport('pdf')}>
+							<span class="dropdown-icon">▤</span>
+							<span>PDF</span>
+						</button>
+					</div>
+				{/if}
+			</div>
+
+			<HelpDropdown />
+
 			<div class="header-actions">
 				<ThemeToggle />
 			</div>
 		</header>
-
-		<!-- Toolbar -->
-		<Toolbar
-			onAddText={() => addNodeAtCenter('text')}
-			onAddLink={() => addNodeAtCenter('link')}
-			onAddGroup={() => addNodeAtCenter('group')}
-		/>
 
 		<!-- Canvas area -->
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -426,6 +496,11 @@
 			onmousemove={handleMouseMove}
 			onclick={handleCanvasClick}
 		>
+			<CanvasToolbar
+				onAddText={() => addNodeAtCenter('text')}
+				onAddLink={() => addNodeAtCenter('link')}
+				onAddGroup={() => addNodeAtCenter('group')}
+			/>
 			<CanvasWorkspace bind:this={workspaceRef} onedgecontextmenu={handleEdgeContextMenu}>
 				{#each canvasStore.renderableNodes as node (node.id)}
 					<CanvasObject {node} onEdit={handleNodeEdit}>
@@ -476,21 +551,101 @@
 	.app-header {
 		display: flex;
 		align-items: center;
+		gap: var(--space-1);
+		padding: 0 var(--space-2);
 		background-color: var(--bg-app);
+		border-bottom: 1px solid var(--border);
 	}
 
 	.app-header :global(.canvas-tabs) {
 		flex: 1;
 	}
 
+	.header-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		font-size: var(--font-size-md);
+		color: var(--text-secondary);
+		background: transparent;
+		border: none;
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		flex-shrink: 0;
+		transition: all var(--transition-fast);
+	}
+
+	.header-btn:hover {
+		color: var(--text-primary);
+		background-color: var(--bg-elevated);
+	}
+
+	.header-btn.active {
+		color: var(--text-primary);
+		background-color: var(--bg-elevated);
+	}
+
+	.header-dropdown {
+		position: relative;
+	}
+
+	.dropdown-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 99;
+	}
+
+	.dropdown-menu {
+		position: absolute;
+		top: 100%;
+		right: 0;
+		margin-top: var(--space-1);
+		min-width: 160px;
+		background: var(--bg-surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-md);
+		z-index: 100;
+		overflow: hidden;
+	}
+
+	.dropdown-item {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		width: 100%;
+		padding: var(--space-2) var(--space-3);
+		font-family: var(--font-sans);
+		font-size: 13px;
+		color: var(--text-primary);
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		transition: background-color var(--transition-fast);
+	}
+
+	.dropdown-item:hover {
+		background-color: var(--bg-elevated);
+	}
+
+	.dropdown-icon {
+		width: 16px;
+		text-align: center;
+		color: var(--text-secondary);
+	}
+
 	.header-actions {
 		display: flex;
 		align-items: center;
-		padding: 0 var(--space-2);
+		padding: 0 var(--space-1);
 	}
 
 	.canvas-area {
 		flex: 1;
+		position: relative;
 		overflow: hidden;
 	}
 
