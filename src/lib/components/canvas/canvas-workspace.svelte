@@ -4,6 +4,7 @@
 	import EdgeRenderer from './edge-renderer.svelte';
 	import AlignmentGuides from './alignment-guides.svelte';
 	import SelectionBox from './selection-box.svelte';
+	import CanvasMinimap from './canvas-minimap.svelte';
 
 	// Props
 	let {
@@ -30,6 +31,10 @@
 
 	// Element reference
 	let containerEl: HTMLDivElement;
+
+	// Container dimensions for minimap viewport indicator
+	let containerWidth = $state(0);
+	let containerHeight = $state(0);
 
 	// Derived viewport values
 	let viewport = $derived(canvasStore.viewport);
@@ -376,6 +381,18 @@
 		};
 	});
 
+	// Track container dimensions for minimap
+	$effect(() => {
+		if (!containerEl) return;
+		const observer = new ResizeObserver((entries) => {
+			const entry = entries[0];
+			containerWidth = entry.contentRect.width;
+			containerHeight = entry.contentRect.height;
+		});
+		observer.observe(containerEl);
+		return () => observer.disconnect();
+	});
+
 	// Handle mouse leave - stop panning or selection if mouse leaves window
 	function handleMouseLeave(e: MouseEvent) {
 		if (isSelecting) {
@@ -427,6 +444,9 @@
 			<SelectionBox start={selectionStart} end={selectionEnd} />
 		{/if}
 	</div>
+
+	<!-- Minimap -->
+	<CanvasMinimap {containerWidth} {containerHeight} />
 
 	<!-- Zoom controls -->
 	<div class="zoom-controls">
