@@ -188,8 +188,8 @@ function getThemeCSS(): string {
 	--space-2: 8px;
 	--space-3: 12px;
 	--space-4: 16px;
-	--radius-sm: 4px;
-	--radius-md: 8px;
+	--radius-sm: 0px;
+	--radius-md: 0px;
 	--transition-fast: 150ms ease;
 	--bg-app: #fafafa;
 	--bg-surface: #ffffff;

@@ -307,7 +307,7 @@
 		position: absolute;
 		inset: -2px;
 		border: 2px solid var(--selection);
-		border-radius: calc(var(--radius-md) + 2px);
+		border-radius: var(--radius-md);
 		pointer-events: none;
 	}
 
@@ -374,7 +374,7 @@
 		transform: translateX(-50%);
 		padding: 2px 8px;
 		background: var(--accent);
-		color: white;
+		color: var(--accent-foreground);
 		font-size: 11px;
 		font-weight: 500;
 		border-radius: var(--radius-sm);

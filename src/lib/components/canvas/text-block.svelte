@@ -312,7 +312,7 @@
 
 	/* Search highlights */
 	.text-rendered :global(.search-highlight) {
-		background: var(--highlight-bg, #fef08a);
+		background: var(--highlight-bg);
 		color: inherit;
 		padding: 0 var(--space-0);
 		border-radius: var(--radius-sm);

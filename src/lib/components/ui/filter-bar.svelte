@@ -171,7 +171,7 @@
 
 	.chip-remove:hover {
 		background: var(--accent);
-		color: white;
+		color: var(--accent-foreground);
 	}
 
 	.filter-input {
@@ -199,7 +199,7 @@
 		padding: 0;
 		background: transparent;
 		border: none;
-		border-radius: 50%;
+		border-radius: var(--radius-sm);
 		color: var(--text-muted);
 		cursor: pointer;
 		font-size: 12px;

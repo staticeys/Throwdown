@@ -243,7 +243,7 @@
 
 	.minimap-node {
 		position: absolute;
-		border-radius: 1px;
+		border-radius: 0;
 		opacity: 0.7;
 		pointer-events: none;
 	}
@@ -262,7 +262,7 @@
 		position: absolute;
 		border: 1.5px solid var(--accent);
 		background-color: color-mix(in srgb, var(--accent) 8%, transparent);
-		border-radius: 1px;
+		border-radius: 0;
 		pointer-events: none;
 	}
 
