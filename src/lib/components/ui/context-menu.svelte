@@ -148,7 +148,6 @@
 		min-width: 160px;
 		padding: var(--space-1);
 		background-color: var(--bg-elevated);
-		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-lg);
 		z-index: 1001;

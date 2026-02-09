@@ -134,8 +134,8 @@
 		gap: var(--space-1);
 		padding: var(--space-1);
 		background: var(--bg-elevated);
-		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-lg);
 		min-width: 200px;
 		max-width: 400px;
 	}
@@ -219,9 +219,8 @@
 		margin-top: var(--space-1);
 		padding: var(--space-1);
 		background: var(--bg-elevated);
-		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-md);
+		box-shadow: var(--shadow-lg);
 		z-index: 100;
 	}
 

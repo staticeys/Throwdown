@@ -33,34 +33,10 @@
 	let hasColor = $derived(nodeColor !== undefined);
 	let isGroup = $derived(node.type === 'group');
 
-	// Link mode derived state
-	let isLinkMode = $derived(canvasStore.isLinkMode);
-	let isLinkSource = $derived(canvasStore.linkSource === node.id);
-
-	// Handle click in link mode
-	function handleLinkModeClick(e: MouseEvent) {
-		e.stopPropagation();
-		e.preventDefault();
-
-		if (!canvasStore.linkSource) {
-			// Set this node as source
-			canvasStore.setLinkSource(node.id);
-		} else if (canvasStore.linkSource !== node.id) {
-			// Create link to this node
-			canvasStore.createLinkFromSource(node.id);
-		}
-	}
-
 	// Handle mouse down for selection and drag start
 	function handleMouseDown(e: MouseEvent) {
 		// Only handle left click
 		if (e.button !== 0) return;
-
-		// In link mode, handle click differently (don't drag)
-		if (isLinkMode) {
-			handleLinkModeClick(e);
-			return;
-		}
 
 		e.preventDefault(); // Prevent text selection
 		e.stopPropagation();
@@ -214,8 +190,6 @@
 	class:selected={isSelected}
 	class:has-color={hasColor}
 	class:is-group={isGroup}
-	class:link-mode-active={isLinkMode}
-	class:link-source={isLinkSource}
 	style:left="{node.x}px"
 	style:top="{node.y}px"
 	style:width="{node.width}px"
@@ -280,7 +254,7 @@
 
 	.canvas-object.selected {
 		border-color: var(--selection);
-		box-shadow: 0 0 0 2px var(--selection-bg);
+		box-shadow: var(--shadow-sm), 0 0 0 2px var(--selection-bg);
 	}
 
 	/* Colored node when selected - keep the tint, use selection border */
@@ -344,42 +318,6 @@
 		border-bottom: 2px solid var(--border-strong);
 		border-right: 2px solid var(--border-strong);
 		transform: rotate(0deg);
-	}
-
-	/* Link mode styles */
-	.canvas-object.link-mode-active {
-		cursor: pointer;
-		transition:
-			border-color var(--transition-fast),
-			box-shadow var(--transition-fast);
-	}
-
-	/* Hover state for non-source nodes (weaker outline) */
-	.canvas-object.link-mode-active:not(.link-source):hover {
-		border-color: var(--accent-muted);
-		box-shadow: 0 0 0 1px var(--accent-muted);
-	}
-
-	/* Source node (strong outline) */
-	.canvas-object.link-source {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 3px var(--accent-muted);
-	}
-
-	.canvas-object.link-source::before {
-		content: 'Source';
-		position: absolute;
-		top: -24px;
-		left: 50%;
-		transform: translateX(-50%);
-		padding: 2px 8px;
-		background: var(--accent);
-		color: var(--accent-foreground);
-		font-size: 11px;
-		font-weight: 500;
-		border-radius: var(--radius-sm);
-		white-space: nowrap;
-		z-index: 10;
 	}
 
 	/* Group node styles - transparent frame */

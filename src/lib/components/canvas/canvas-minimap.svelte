@@ -220,8 +220,8 @@
 		font-size: 12px;
 		color: var(--text-secondary);
 		background: var(--bg-surface);
-		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-lg);
 		cursor: pointer;
 		transition: all var(--transition-fast);
 	}
@@ -234,8 +234,8 @@
 	.minimap {
 		position: relative;
 		background-color: var(--bg-surface);
-		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-lg);
 		overflow: hidden;
 		cursor: crosshair;
 		opacity: var(--panel-opacity);
@@ -272,8 +272,8 @@
 		gap: var(--space-1);
 		padding: var(--space-1);
 		background-color: var(--bg-surface);
-		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-lg);
 		user-select: none;
 	}
 
