@@ -54,6 +54,7 @@
 
 		// Start drag
 		isDragging = true;
+		canvasStore.beginTransaction();
 		dragStart = { x: e.clientX, y: e.clientY };
 		nodeStart = { x: node.x, y: node.y };
 
@@ -135,6 +136,7 @@
 	// Handle drag end
 	function handleMouseUp() {
 		isDragging = false;
+		canvasStore.endTransaction();
 		containedNodesAtDragStart = []; // Reset contained nodes snapshot
 		document.removeEventListener('mousemove', handleMouseMove);
 		document.removeEventListener('mouseup', handleMouseUp);
@@ -150,6 +152,7 @@
 		e.preventDefault(); // Prevent text selection
 		e.stopPropagation();
 		isResizing = true;
+		canvasStore.beginTransaction();
 		resizeStart = { x: e.clientX, y: e.clientY, width: node.width, height: node.height };
 		document.addEventListener('mousemove', handleResizeMouseMove);
 		document.addEventListener('mouseup', handleResizeMouseUp);
@@ -172,6 +175,7 @@
 	// Resize end
 	function handleResizeMouseUp() {
 		isResizing = false;
+		canvasStore.endTransaction();
 		document.removeEventListener('mousemove', handleResizeMouseMove);
 		document.removeEventListener('mouseup', handleResizeMouseUp);
 		document.body.classList.remove('dragging');

@@ -39,6 +39,7 @@
 
 	// Start editing
 	export function startEdit() {
+		canvasStore.beginTransaction();
 		isEditing = true;
 		requestAnimationFrame(() => {
 			inputEl?.focus();
@@ -49,6 +50,7 @@
 	// Stop editing
 	function stopEdit() {
 		isEditing = false;
+		canvasStore.endTransaction();
 	}
 
 	// Handle input change
