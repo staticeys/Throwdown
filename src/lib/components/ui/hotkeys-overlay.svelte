@@ -55,6 +55,14 @@
 			</section>
 
 			<section>
+				<h3>History</h3>
+				<dl>
+					<div class="shortcut"><dt><kbd>{mod}</kbd> + <kbd>Z</kbd></dt><dd>Undo</dd></div>
+					<div class="shortcut"><dt><kbd>{mod}</kbd> + <kbd>Y</kbd></dt><dd>Redo</dd></div>
+				</dl>
+			</section>
+
+			<section>
 				<h3>Nodes</h3>
 				<dl>
 					<div class="shortcut"><dt><kbd>L</kbd></dt><dd>Link selected nodes</dd></div>

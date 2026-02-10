@@ -30,6 +30,17 @@ import {
 	createAutoSave
 } from '$lib/db/indexed-db';
 
+// Undo/redo history types
+interface CanvasSnapshot {
+	nodes: CanvasNode[];
+	edges: CanvasEdge[];
+}
+
+interface CanvasHistory {
+	undoStack: CanvasSnapshot[];
+	redoStack: CanvasSnapshot[];
+}
+
 // Canvas state management using Svelte 5 runes
 class CanvasStore {
 	// State
@@ -48,6 +59,11 @@ class CanvasStore {
 
 	// Auto-save instance
 	private autoSave = createAutoSave(500);
+
+	// Undo/redo history (per-canvas, in-memory only)
+	private history: Record<string, CanvasHistory> = {};
+	private inTransaction = false;
+	private readonly HISTORY_LIMIT = 30;
 
 	// Derived state
 	get activeCanvas(): CanvasFile | null {
@@ -178,6 +194,127 @@ class CanvasStore {
 		}
 	}
 
+	// Undo/redo: capture snapshot before mutation
+	private pushSnapshot(): void {
+		const canvasId = this.activeCanvasId;
+		const canvas = this.activeCanvas;
+		if (!canvas) return;
+
+		// Skip if inside a transaction (snapshot already captured at transaction start)
+		if (this.inTransaction) return;
+
+		// Lazily initialize history for this canvas
+		if (!this.history[canvasId]) {
+			this.history[canvasId] = { undoStack: [], redoStack: [] };
+		}
+
+		const history = this.history[canvasId];
+
+		// Deep clone current state (strips Svelte 5 proxies)
+		const snapshot: CanvasSnapshot = JSON.parse(JSON.stringify({
+			nodes: canvas.nodes,
+			edges: canvas.edges
+		}));
+
+		history.undoStack.push(snapshot);
+
+		// Enforce history limit
+		if (history.undoStack.length > this.HISTORY_LIMIT) {
+			history.undoStack.shift();
+		}
+
+		// New action invalidates redo
+		history.redoStack = [];
+	}
+
+	// Begin a transaction — batches multiple mutations into one undo step
+	beginTransaction(): void {
+		if (this.inTransaction) return;
+		// Push snapshot BEFORE setting flag so pushSnapshot() proceeds
+		this.pushSnapshot();
+		this.inTransaction = true;
+	}
+
+	// End a transaction — removes no-op snapshot if state didn't change
+	endTransaction(): void {
+		this.inTransaction = false;
+
+		// Remove no-op snapshot if state didn't actually change
+		const canvasId = this.activeCanvasId;
+		const canvas = this.activeCanvas;
+		const history = this.history[canvasId];
+		if (canvas && history && history.undoStack.length > 0) {
+			const lastSnapshot = history.undoStack[history.undoStack.length - 1];
+			const currentState = JSON.stringify({ nodes: canvas.nodes, edges: canvas.edges });
+			const snapshotState = JSON.stringify(lastSnapshot);
+			if (currentState === snapshotState) {
+				history.undoStack.pop();
+			}
+		}
+	}
+
+	// Undo last action
+	undo(): void {
+		const canvasId = this.activeCanvasId;
+		const canvas = this.activeCanvas;
+		const history = this.history[canvasId];
+		if (!canvas || !history || history.undoStack.length === 0) return;
+
+		// Save current state to redo stack
+		const currentSnapshot: CanvasSnapshot = JSON.parse(JSON.stringify({
+			nodes: canvas.nodes,
+			edges: canvas.edges
+		}));
+		history.redoStack.push(currentSnapshot);
+
+		// Restore previous state
+		const previousSnapshot = history.undoStack.pop()!;
+		canvas.nodes = previousSnapshot.nodes;
+		canvas.edges = previousSnapshot.edges;
+
+		// Clean up selection (remove IDs that no longer exist)
+		const nodeIds = new Set(previousSnapshot.nodes.map(n => n.id));
+		this.selection = this.selection.filter(id => nodeIds.has(id));
+
+		this.triggerSave();
+	}
+
+	// Redo last undone action
+	redo(): void {
+		const canvasId = this.activeCanvasId;
+		const canvas = this.activeCanvas;
+		const history = this.history[canvasId];
+		if (!canvas || !history || history.redoStack.length === 0) return;
+
+		// Save current state to undo stack
+		const currentSnapshot: CanvasSnapshot = JSON.parse(JSON.stringify({
+			nodes: canvas.nodes,
+			edges: canvas.edges
+		}));
+		history.undoStack.push(currentSnapshot);
+
+		// Restore next state
+		const nextSnapshot = history.redoStack.pop()!;
+		canvas.nodes = nextSnapshot.nodes;
+		canvas.edges = nextSnapshot.edges;
+
+		// Clean up selection
+		const nodeIds = new Set(nextSnapshot.nodes.map(n => n.id));
+		this.selection = this.selection.filter(id => nodeIds.has(id));
+
+		this.triggerSave();
+	}
+
+	get canUndo(): boolean {
+		const history = this.history[this.activeCanvasId];
+		return !!history && history.undoStack.length > 0;
+	}
+
+	get canRedo(): boolean {
+		const history = this.history[this.activeCanvasId];
+		return !!history && history.redoStack.length > 0;
+	}
+
 	// Canvas operations
 	createNewCanvas(name: string): string {
 		const id = generateId();
@@ -214,6 +351,7 @@ class CanvasStore {
 		}
 
 		delete this.canvases[id];
+		delete this.history[id];
 		deleteCanvasFromDB(id);
 
 		// Switch to another canvas if we deleted the active one
@@ -264,6 +402,7 @@ class CanvasStore {
 	// Node operations
 	addNode(node: CanvasNode): void {
 		if (this.activeCanvas) {
+			this.pushSnapshot();
 			this.activeCanvas.nodes.push(node);
 			this.triggerSave();
 		}
@@ -285,6 +424,7 @@ class CanvasStore {
 		const node = createGroupNode(x, y, label);
 		// Insert groups at the beginning so they render behind other nodes
 		if (this.activeCanvas) {
+			this.pushSnapshot();
 			this.activeCanvas.nodes.unshift(node);
 			this.triggerSave();
 		}
@@ -296,6 +436,7 @@ class CanvasStore {
 
 		const index = this.activeCanvas.nodes.findIndex(n => n.id === id);
 		if (index !== -1) {
+			this.pushSnapshot();
 			// Update node (triggerSave will handle serialization)
 			this.activeCanvas.nodes[index] = {
 				...this.activeCanvas.nodes[index],
@@ -323,12 +464,14 @@ class CanvasStore {
 			}
 		}
 
+		this.beginTransaction();
 		for (const id of nodesToMove) {
 			const node = this.nodes.find((n) => n.id === id);
 			if (node) {
 				this.updateNode(id, { x: node.x + dx, y: node.y + dy });
 			}
 		}
+		this.endTransaction();
 	}
 
 	// Get nodes contained within a group's bounds
@@ -344,6 +487,8 @@ class CanvasStore {
 
 	deleteNode(id: string): void {
 		if (!this.activeCanvas) return;
+
+		this.pushSnapshot();
 
 		// Remove node
 		this.activeCanvas.nodes = this.activeCanvas.nodes.filter(n => n.id !== id);
@@ -361,16 +506,20 @@ class CanvasStore {
 
 	deleteSelectedNodes(): void {
 		const toDelete = [...this.selection];
+		this.beginTransaction();
 		for (const id of toDelete) {
 			this.deleteNode(id);
 		}
+		this.endTransaction();
 	}
 
 	// Set color for selected nodes (pass undefined to clear color)
 	setSelectedNodesColor(color: NodeColor | undefined): void {
+		this.beginTransaction();
 		for (const id of this.selection) {
 			this.updateNode(id, { color });
 		}
+		this.endTransaction();
 	}
 
 	// Create a group node from the current selection
@@ -379,6 +528,8 @@ class CanvasStore {
 
 		const selectedNodes = this.selectedNodes;
 		if (selectedNodes.length === 0) return null;
+
+		this.pushSnapshot();
 
 		// Calculate bounding box of selected nodes
 		const bounds = calculateBoundingBox(selectedNodes);
@@ -422,6 +573,7 @@ class CanvasStore {
 	addEdge(fromNode: string, toNode: string): CanvasEdge {
 		const edge = createEdge(fromNode, toNode);
 		if (this.activeCanvas) {
+			this.pushSnapshot();
 			this.activeCanvas.edges.push(edge);
 			this.triggerSave();
 		}
@@ -431,6 +583,7 @@ class CanvasStore {
 	linkSelectedNodes(): void {
 		if (this.selection.length < 2) return;
 
+		this.beginTransaction();
 		const [first, ...rest] = this.selection;
 		for (const toNode of rest) {
 			// Check if edge already exists
@@ -441,10 +594,12 @@ class CanvasStore {
 				this.addEdge(first, toNode);
 			}
 		}
+		this.endTransaction();
 	}
 
 	deleteEdge(id: string): void {
 		if (this.activeCanvas) {
+			this.pushSnapshot();
 			this.activeCanvas.edges = this.activeCanvas.edges.filter(e => e.id !== id);
 			this.triggerSave();
 		}
@@ -454,6 +609,7 @@ class CanvasStore {
 		if (this.activeCanvas) {
 			const edge = this.activeCanvas.edges.find(e => e.id === id);
 			if (edge) {
+				this.pushSnapshot();
 				Object.assign(edge, updates);
 				this.triggerSave();
 			}

@@ -271,6 +271,21 @@
 		// Skip other shortcuts if typing
 		if (isTyping) return;
 
+		// Cmd/Ctrl + Z — Undo
+		if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+			e.preventDefault();
+			canvasStore.undo();
+			return;
+		}
+
+		// Cmd/Ctrl + Y or Cmd/Ctrl + Shift + Z — Redo
+		if ((e.code === 'KeyY' && (e.ctrlKey || e.metaKey)) ||
+			(e.code === 'KeyZ' && (e.ctrlKey || e.metaKey) && e.shiftKey)) {
+			e.preventDefault();
+			canvasStore.redo();
+			return;
+		}
+
 		// L (without modifiers) - Link selected nodes
 		if (e.code === 'KeyL' && !e.ctrlKey && !e.metaKey) {
 			e.preventDefault();

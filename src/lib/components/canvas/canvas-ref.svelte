@@ -12,6 +12,7 @@
 
 	// Start editing label
 	export function startEdit() {
+		canvasStore.beginTransaction();
 		isEditing = true;
 		canvasStore.setEditingText(true);
 		requestAnimationFrame(() => {
@@ -24,6 +25,7 @@
 	function stopEdit() {
 		isEditing = false;
 		canvasStore.setEditingText(false);
+		canvasStore.endTransaction();
 	}
 
 	// Handle input change
