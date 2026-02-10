@@ -95,7 +95,7 @@
 		background: var(--bg-surface);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-md);
+		box-shadow: var(--shadow-sm);
 		z-index: 100;
 		overflow: hidden;
 	}

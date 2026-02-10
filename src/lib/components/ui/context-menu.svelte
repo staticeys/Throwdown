@@ -149,7 +149,7 @@
 		padding: var(--space-1);
 		background-color: var(--bg-elevated);
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-lg);
+		box-shadow: var(--shadow-xl);
 		z-index: 1001;
 	}
 

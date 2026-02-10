@@ -135,7 +135,7 @@
 		padding: var(--space-1);
 		background: var(--bg-elevated);
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-lg);
+		box-shadow: var(--shadow-xs);
 		min-width: 200px;
 		max-width: 400px;
 	}
@@ -220,7 +220,7 @@
 		padding: var(--space-1);
 		background: var(--bg-elevated);
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-lg);
+		box-shadow: var(--shadow-xs);
 		z-index: 100;
 	}
 
