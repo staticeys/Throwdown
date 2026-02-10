@@ -309,6 +309,6 @@
 		border: 1px solid var(--accent);
 		border-radius: var(--radius-sm);
 		outline: none;
-		box-shadow: var(--shadow-md);
+		box-shadow: var(--shadow-sm);
 	}
 </style>

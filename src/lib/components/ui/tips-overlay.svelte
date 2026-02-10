@@ -91,7 +91,7 @@
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		padding: var(--space-2) var(--space-3);
-		box-shadow: var(--shadow-md);
+		box-shadow: var(--shadow-xs);
 		max-width: 280px;
 		opacity: var(--panel-opacity);
 	}

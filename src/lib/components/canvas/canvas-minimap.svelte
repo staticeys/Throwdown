@@ -221,7 +221,7 @@
 		color: var(--text-secondary);
 		background: var(--bg-surface);
 		border-radius: var(--radius-sm);
-		box-shadow: var(--shadow-lg);
+		box-shadow: var(--shadow-xs);
 		cursor: pointer;
 		transition: all var(--transition-fast);
 	}
@@ -235,7 +235,7 @@
 		position: relative;
 		background-color: var(--bg-surface);
 		border-radius: var(--radius-sm);
-		box-shadow: var(--shadow-lg);
+		box-shadow: var(--shadow-xs);
 		overflow: hidden;
 		cursor: crosshair;
 		opacity: var(--panel-opacity);
@@ -273,7 +273,7 @@
 		padding: var(--space-1);
 		background-color: var(--bg-surface);
 		border-radius: var(--radius-sm);
-		box-shadow: var(--shadow-lg);
+		box-shadow: var(--shadow-xs);
 		user-select: none;
 	}
 

@@ -77,7 +77,7 @@
 		padding: var(--space-1);
 		background-color: var(--bg-surface);
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-lg);
+		box-shadow: var(--shadow-xs);
 		opacity: var(--panel-opacity);
 		z-index: 10;
 	}
@@ -128,7 +128,7 @@
 		min-width: 120px;
 		background: var(--bg-surface);
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-lg);
+		box-shadow: var(--shadow-xs);
 		z-index: 100;
 		overflow: hidden;
 	}

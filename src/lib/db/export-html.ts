@@ -206,8 +206,7 @@ function getThemeCSS(): string {
 	--hashtag-bg: #dbeafe;
 	--hashtag-text: #3b82f6;
 	--highlight-bg: #fef08a;
-	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-	--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+	--shadow-md: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme='dark'] {
@@ -226,8 +225,7 @@ function getThemeCSS(): string {
 	--hashtag-bg: #1e3a5f;
 	--hashtag-text: #60a5fa;
 	--highlight-bg: #854d0e;
-	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-	--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+	--shadow-md: 0 2px 6px rgba(0, 0, 0, 0.35);
 }`;
 }
 
@@ -261,7 +259,7 @@ body { background: var(--bg-canvas); }
 	background-color: var(--bg-surface);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
-	box-shadow: var(--shadow-sm);
+	box-shadow: var(--shadow-md);
 	cursor: default;
 	user-select: text;
 }

@@ -234,7 +234,7 @@
 		background-color: var(--bg-surface);
 		border: 1px solid var(--node-border-color, var(--border));
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-sm);
+		box-shadow: var(--shadow-md);
 		cursor: grab;
 		transition: box-shadow var(--transition-fast);
 		/* overflow controlled via inline style - hidden when not selected, visible when selected */
@@ -243,7 +243,7 @@
 	}
 
 	.canvas-object:hover {
-		box-shadow: var(--shadow-md);
+		box-shadow: var(--shadow-lg);
 	}
 
 	/* Node with color - tinted background and colored border */
@@ -254,7 +254,7 @@
 
 	.canvas-object.selected {
 		border-color: var(--selection);
-		box-shadow: var(--shadow-sm), 0 0 0 2px var(--selection-bg);
+		box-shadow: var(--shadow-lg), 0 0 0 2px var(--selection-bg);
 	}
 
 	/* Colored node when selected - keep the tint, use selection border */
@@ -296,7 +296,7 @@
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
 		cursor: nwse-resize !important;
-		box-shadow: var(--shadow-sm);
+		box-shadow: var(--shadow-xs);
 		transition:
 			background var(--transition-fast),
 			border-color var(--transition-fast),
