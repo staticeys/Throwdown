@@ -34,7 +34,15 @@ export interface GroupNode extends CanvasNodeBase {
 	backgroundStyle?: 'cover' | 'ratio' | 'repeat';
 }
 
-export type CanvasNode = TextNode | LinkNode | GroupNode;
+// File node - references files stored in OPFS
+export interface FileNode extends CanvasNodeBase {
+	type: 'file';
+	filename: string;
+	mimeType: string;
+	size: number;
+}
+
+export type CanvasNode = TextNode | LinkNode | GroupNode | FileNode;
 
 // Edge connecting two nodes (JSON Canvas spec)
 export interface CanvasEdge {
@@ -113,6 +121,10 @@ export function isGroupNode(node: CanvasNode): node is GroupNode {
 	return node.type === 'group';
 }
 
+export function isFileNode(node: CanvasNode): node is FileNode {
+	return node.type === 'file';
+}
+
 // Generate unique ID
 export function generateId(): string {
 	return crypto.randomUUID();
@@ -170,6 +182,43 @@ export function createGroupNode(x: number, y: number, label?: string): GroupNode
 		height: DEFAULT_NODE_HEIGHT,
 		label
 	};
+}
+
+// Create new file node
+export function createFileNode(x: number, y: number, filename: string, mimeType: string, size: number): FileNode {
+	return {
+		id: generateId(),
+		type: 'file',
+		x,
+		y,
+		width: DEFAULT_NODE_WIDTH,
+		height: DEFAULT_NODE_HEIGHT,
+		filename,
+		mimeType,
+		size
+	};
+}
+
+// MIME type inference from filename extension
+const EXTENSION_MIME_MAP: Record<string, string> = {
+	// Images
+	png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+	webp: 'image/webp', svg: 'image/svg+xml', ico: 'image/x-icon', bmp: 'image/bmp',
+	// Video
+	mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg', mov: 'video/quicktime',
+	avi: 'video/x-msvideo',
+	// Audio
+	mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac', aac: 'audio/aac',
+	m4a: 'audio/mp4',
+	// Documents
+	pdf: 'application/pdf', json: 'application/json', xml: 'application/xml',
+	txt: 'text/plain', md: 'text/markdown', csv: 'text/csv',
+	html: 'text/html', css: 'text/css', js: 'text/javascript',
+};
+
+export function getMimeTypeFromFilename(filename: string): string {
+	const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+	return EXTENSION_MIME_MAP[ext] ?? 'application/octet-stream';
 }
 
 // Create edge between nodes

@@ -18,6 +18,7 @@ export const icons = {
 	text: '¶',
 	link: '§',
 	canvas: '◫',
+	file: '⊞',
 
 	// URL context types
 	map: '📍',

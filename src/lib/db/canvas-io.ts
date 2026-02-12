@@ -1,4 +1,7 @@
 import type { CanvasFile, CanvasNode, CanvasEdge } from '$lib/types/canvas';
+import { getMimeTypeFromFilename } from '$lib/types/canvas';
+import { loadFileFromOPFS, saveFileToOPFS } from '$lib/platform/fs-opfs';
+import JSZip from 'jszip';
 import { generateHtml } from './export-html';
 export { exportPdf } from './export-pdf';
 
@@ -43,7 +46,8 @@ function validateCanvasFile(data: unknown): data is CanvasFile {
 // - Coerce numeric color values to strings (spec requires string)
 function sanitizeForExport(canvas: CanvasFile): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
 	const nodes = canvas.nodes.map(node => {
-		const sanitized = { ...node };
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const sanitized: any = { ...node };
 		sanitized.x = Math.round(sanitized.x);
 		sanitized.y = Math.round(sanitized.y);
 		sanitized.width = Math.round(sanitized.width);
@@ -51,7 +55,11 @@ function sanitizeForExport(canvas: CanvasFile): { nodes: CanvasNode[]; edges: Ca
 		if (sanitized.color !== undefined) {
 			sanitized.color = String(sanitized.color);
 		}
-		return sanitized;
+		// Add spec-compliant 'file' field for file nodes
+		if (sanitized.type === 'file') {
+			sanitized.file = sanitized.filename;
+		}
+		return sanitized as CanvasNode;
 	});
 	const edges = canvas.edges.map(edge => {
 		if (edge.color === undefined) return edge;
@@ -96,8 +104,8 @@ export function importCanvas(json: string): CanvasFile {
 		throw new Error('Invalid canvas file format');
 	}
 
-	// Filter out unsupported node types (e.g. 'file') and their orphaned edges
-	const supportedTypes = new Set(['text', 'link', 'group']);
+	// Filter out unsupported node types and their orphaned edges
+	const supportedTypes = new Set(['text', 'link', 'group', 'file']);
 	const droppedIds = new Set(
 		data.nodes.filter(n => !supportedTypes.has(n.type)).map(n => n.id)
 	);
@@ -105,6 +113,23 @@ export function importCanvas(json: string): CanvasFile {
 		data.nodes = data.nodes.filter(n => supportedTypes.has(n.type));
 		data.edges = data.edges.filter(e => !droppedIds.has(e.fromNode) && !droppedIds.has(e.toNode));
 	}
+
+	// Normalize file nodes imported from other apps (have 'file' but not 'filename')
+	data.nodes = data.nodes.map(node => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const n = node as any;
+		if (n.type === 'file' && !n.filename && n.file) {
+			const filePath = String(n.file);
+			const filename = filePath.split('/').pop() || 'unknown';
+			return {
+				...node,
+				filename,
+				mimeType: getMimeTypeFromFilename(filename),
+				size: 0
+			} as CanvasNode;
+		}
+		return node;
+	});
 
 	return data;
 }
@@ -212,6 +237,162 @@ export function downloadBackup(canvases: Record<string, CanvasFile>): void {
 	const a = document.createElement('a');
 	a.href = url;
 	a.download = `canvas-backup-${date}.json`;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+
+// --- ZIP Export/Import with Files ---
+
+// Export single canvas with files as ZIP
+export async function exportCanvasWithFiles(
+	canvas: CanvasFile,
+	canvasId: string
+): Promise<Blob> {
+	const zip = new JSZip();
+
+	// Add canvas JSON
+	const canvasJson = exportCanvas(canvas);
+	zip.file('canvas.json', canvasJson);
+
+	// Add files from OPFS
+	const fileNodes = canvas.nodes.filter(n => n.type === 'file');
+	if (fileNodes.length > 0) {
+		const filesDir = zip.folder('files');
+		if (filesDir) {
+			for (const node of fileNodes) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const fileNode = node as any;
+				try {
+					const file = await loadFileFromOPFS(canvasId, node.id, fileNode.filename);
+					if (file) {
+						filesDir.file(`${node.id}-${fileNode.filename}`, file);
+					}
+				} catch (error) {
+					console.warn('Failed to load file for export:', fileNode.filename, error);
+				}
+			}
+		}
+	}
+
+	return await zip.generateAsync({ type: 'blob' });
+}
+
+// Download single canvas with files as ZIP
+export async function downloadCanvasWithFiles(
+	canvas: CanvasFile,
+	canvasId: string,
+	filename?: string
+): Promise<void> {
+	const name = filename ?? canvas['x-metadata']?.name ?? 'canvas';
+	const safeName = name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+	const zipBlob = await exportCanvasWithFiles(canvas, canvasId);
+	triggerDownload(zipBlob, `${safeName}.zip`);
+}
+
+// Import canvas from ZIP (returns canvas data + files for OPFS storage)
+export async function importCanvasFromZip(
+	zipFile: File
+): Promise<{ canvas: CanvasFile; files: Array<{ nodeId: string; file: File }> }> {
+	const zip = await JSZip.loadAsync(zipFile);
+
+	// Read canvas.json
+	const canvasJsonFile = zip.file('canvas.json');
+	if (!canvasJsonFile) {
+		throw new Error('ZIP does not contain canvas.json');
+	}
+	const canvasJson = await canvasJsonFile.async('text');
+	const canvas = importCanvas(canvasJson);
+
+	// Read files from files/ directory
+	const files: Array<{ nodeId: string; file: File }> = [];
+	const filesDir = zip.folder('files');
+	if (filesDir) {
+		const entries = Object.entries(filesDir.files);
+		for (const [path, zipEntry] of entries) {
+			if (zipEntry.dir) continue;
+			const filename = path.replace(/^files\//, '');
+			if (!filename) continue;
+
+			// Extract nodeId from filename (format: {nodeId}-{originalFilename})
+			const dashIndex = filename.indexOf('-');
+			if (dashIndex === -1) continue;
+
+			const nodeId = filename.substring(0, dashIndex);
+			const originalName = filename.substring(dashIndex + 1);
+			const blob = await zipEntry.async('blob');
+			const file = new File([blob], originalName);
+			files.push({ nodeId, file });
+		}
+	}
+
+	return { canvas, files };
+}
+
+// Export all canvases with files as ZIP backup
+export async function exportAllCanvasesWithFiles(
+	canvases: Record<string, CanvasFile>
+): Promise<Blob> {
+	const zip = new JSZip();
+
+	zip.file('backup.json', JSON.stringify({
+		version: 1,
+		exportedAt: new Date().toISOString(),
+		canvasCount: Object.keys(canvases).length
+	}, null, '\t'));
+
+	for (const [canvasId, canvas] of Object.entries(canvases)) {
+		const canvasName = canvas['x-metadata']?.name ?? canvasId;
+		const safeName = canvasName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+		const canvasDir = zip.folder(safeName);
+		if (!canvasDir) continue;
+
+		// Add canvas JSON
+		const canvasJson = exportCanvas(canvas);
+		canvasDir.file('canvas.json', canvasJson);
+
+		// Add files
+		const fileNodes = canvas.nodes.filter(n => n.type === 'file');
+		if (fileNodes.length > 0) {
+			const filesDir = canvasDir.folder('files');
+			if (filesDir) {
+				for (const node of fileNodes) {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const fileNode = node as any;
+					try {
+						const file = await loadFileFromOPFS(canvasId, node.id, fileNode.filename);
+						if (file) {
+							filesDir.file(`${node.id}-${fileNode.filename}`, file);
+						}
+					} catch (error) {
+						console.warn('Failed to load file:', fileNode.filename, error);
+					}
+				}
+			}
+		}
+	}
+
+	return await zip.generateAsync({ type: 'blob' });
+}
+
+// Download all canvases with files as ZIP backup
+export async function downloadAllCanvasesWithFiles(
+	canvases: Record<string, CanvasFile>
+): Promise<void> {
+	const zipBlob = await exportAllCanvasesWithFiles(canvases);
+	const date = new Date().toISOString().split('T')[0];
+	triggerDownload(zipBlob, `canvas-backup-${date}.zip`);
+}
+
+// Helper to trigger file download
+function triggerDownload(blob: Blob, filename: string): void {
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = filename;
 	document.body.appendChild(a);
 	a.click();
 	document.body.removeChild(a);
