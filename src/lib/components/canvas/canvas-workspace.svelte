@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { canvasStore } from '$lib/stores/canvas.svelte';
-	import { isTextNode, isLinkNode, isGroupNode, type NodeColor } from '$lib/types/canvas';
+	import { isTextNode, isLinkNode, isGroupNode, createFileNode, type NodeColor } from '$lib/types/canvas';
 	import { isOPFSSupported, saveFileToOPFS, canSaveFile } from '$lib/platform/fs-opfs';
 	import EdgeRenderer from './edge-renderer.svelte';
 	import AlignmentGuides from './alignment-guides.svelte';
@@ -467,7 +467,8 @@
 			}
 
 			try {
-				const node = canvasStore.addFileNode(
+				// Create node to get its ID, save file to OPFS first, then add node to store
+				const node = createFileNode(
 					x + (i * STACK_OFFSET),
 					y + (i * STACK_OFFSET),
 					file.name,
@@ -476,6 +477,7 @@
 				);
 
 				await saveFileToOPFS(file, canvasStore.activeCanvasId, node.id);
+				canvasStore.addNode(node);
 
 				if (i === 0) {
 					canvasStore.selectOnly(node.id);
