@@ -16,7 +16,7 @@
 	import TipsOverlay from '$lib/components/ui/tips-overlay.svelte';
 	import { downloadCanvas, downloadHtml, downloadCanvasWithFiles, importCanvas, importCanvasFromZip, exportPdf } from '$lib/db/canvas-io';
 	import type { ContextMenuItem } from '$lib/components/ui/context-menu.svelte';
-	import { isTextNode, isLinkNode, isGroupNode, isFileNode, COLOR_PRESETS } from '$lib/types/canvas';
+	import { isTextNode, isLinkNode, isGroupNode, isFileNode, createFileNode, COLOR_PRESETS } from '$lib/types/canvas';
 	import type { TextNode, LinkNode, GroupNode, FileNode } from '$lib/types/canvas';
 	import { parseClipboard } from '$lib/utils/paste-detection';
 	import { icons } from '$lib/components/icons';
@@ -444,7 +444,8 @@
 				if (!fits) continue;
 
 				try {
-					const node = canvasStore.addFileNode(
+					// Create node to get its ID, save file to OPFS first, then add node to store
+					const node = createFileNode(
 						x + (i * STACK_OFFSET) - 100,
 						y + (i * STACK_OFFSET) - 50,
 						file.name,
@@ -452,6 +453,7 @@
 						file.size
 					);
 					await saveFileToOPFS(file, canvasStore.activeCanvasId, node.id);
+					canvasStore.addNode(node);
 					if (i === 0) canvasStore.selectOnly(node.id);
 					else canvasStore.select(node.id);
 				} catch (error) {
