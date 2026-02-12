@@ -7,19 +7,22 @@
 	import TextBlock from '$lib/components/canvas/text-block.svelte';
 	import LinkBlock from '$lib/components/canvas/link-block.svelte';
 	import CanvasRef from '$lib/components/canvas/canvas-ref.svelte';
+	import FileBlock from '$lib/components/canvas/file-block.svelte';
 	import ContextMenu from '$lib/components/ui/context-menu.svelte';
 	import CanvasToolbar from '$lib/components/ui/canvas-toolbar.svelte';
 	import HelpDropdown from '$lib/components/ui/help-dropdown.svelte';
 	import ThemeToggle from '$lib/components/ui/theme-toggle.svelte';
 	import CanvasTabs from '$lib/components/ui/canvas-tabs.svelte';
 	import TipsOverlay from '$lib/components/ui/tips-overlay.svelte';
-	import { downloadCanvas, downloadHtml, openCanvasFile, exportPdf } from '$lib/db/canvas-io';
+	import { downloadCanvas, downloadHtml, downloadCanvasWithFiles, importCanvas, importCanvasFromZip, exportPdf } from '$lib/db/canvas-io';
 	import type { ContextMenuItem } from '$lib/components/ui/context-menu.svelte';
-	import { isTextNode, isLinkNode, isGroupNode, COLOR_PRESETS } from '$lib/types/canvas';
-	import type { TextNode, LinkNode, GroupNode } from '$lib/types/canvas';
+	import { isTextNode, isLinkNode, isGroupNode, isFileNode, COLOR_PRESETS } from '$lib/types/canvas';
+	import type { TextNode, LinkNode, GroupNode, FileNode } from '$lib/types/canvas';
 	import { parseClipboard } from '$lib/utils/paste-detection';
 	import { icons } from '$lib/components/icons';
 	import { cleanTrackingFromUrl } from '$lib/utils/url-cleaner';
+	import { isOPFSSupported, saveFileToOPFS, canSaveFile } from '$lib/platform/fs-opfs';
+	import { requestPersistentStorage } from '$lib/db/indexed-db';
 
 	// Component refs for triggering edit mode
 	let blockRefs = $state<Record<string, TextBlock | LinkBlock | CanvasRef>>({});
@@ -37,16 +40,35 @@
 	// Header export dropdown state
 	let showExportMenu = $state(false);
 
-	// Import canvas file
+	// Import canvas file (.canvas, .json, or .zip with files)
 	async function handleImport() {
-		const canvas = await openCanvasFile();
-		if (canvas) {
-			canvasStore.importCanvasData(canvas);
-		}
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.canvas,.json,.zip';
+
+		input.onchange = async () => {
+			const file = input.files?.[0];
+			if (!file) return;
+
+			try {
+				if (file.name.endsWith('.zip')) {
+					const { canvas, files } = await importCanvasFromZip(file);
+					await canvasStore.importCanvasWithFiles(canvas, files);
+				} else {
+					const text = await file.text();
+					const canvas = importCanvas(text);
+					canvasStore.importCanvasData(canvas);
+				}
+			} catch (error) {
+				console.error('Failed to import:', error);
+			}
+		};
+
+		input.click();
 	}
 
 	// Export canvas
-	function handleExport(type: 'canvas' | 'html' | 'pdf') {
+	async function handleExport(type: 'canvas' | 'canvas-zip' | 'html' | 'pdf') {
 		showExportMenu = false;
 		const canvas = canvasStore.activeCanvas;
 		if (!canvas) return;
@@ -54,6 +76,9 @@
 		switch (type) {
 			case 'canvas':
 				downloadCanvas(canvas);
+				break;
+			case 'canvas-zip':
+				await downloadCanvasWithFiles(canvas, canvasStore.activeCanvasId);
 				break;
 			case 'html':
 				downloadHtml(canvas);
@@ -70,6 +95,9 @@
 			canvasStore.init(),
 			themeStore.init()
 		]);
+
+		// Request persistent storage to prevent browser eviction of OPFS/IndexedDB data
+		requestPersistentStorage().catch(() => {});
 	});
 
 	// Deselect hidden nodes when filters change
@@ -177,6 +205,11 @@
 					canvasStore.selectOnly(node.id);
 				}
 			},
+			...(isOPFSSupported() ? [{
+				label: 'Add File',
+				icon: icons.file,
+				action: () => openFilePicker(x, y)
+			}] : []),
 			{ label: '', icon: '', action: () => {}, separator: true },
 			{
 				label: 'Paste',
@@ -391,13 +424,57 @@
 		contextMenu = null;
 	}
 
+	// Open file picker and create file nodes at given canvas position
+	async function openFilePicker(x: number, y: number) {
+		if (!isOPFSSupported()) return;
+
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.multiple = true;
+
+		input.onchange = async () => {
+			const files = input.files;
+			if (!files || files.length === 0) return;
+
+			const STACK_OFFSET = 20;
+
+			for (let i = 0; i < files.length; i++) {
+				const file = files[i];
+				const fits = await canSaveFile(file.size);
+				if (!fits) continue;
+
+				try {
+					const node = canvasStore.addFileNode(
+						x + (i * STACK_OFFSET) - 100,
+						y + (i * STACK_OFFSET) - 50,
+						file.name,
+						file.type || 'application/octet-stream',
+						file.size
+					);
+					await saveFileToOPFS(file, canvasStore.activeCanvasId, node.id);
+					if (i === 0) canvasStore.selectOnly(node.id);
+					else canvasStore.select(node.id);
+				} catch (error) {
+					console.error('Failed to save file:', file.name, error);
+				}
+			}
+		};
+
+		input.click();
+	}
+
 	// Toolbar actions - add nodes at center of viewport
-	function addNodeAtCenter(type: 'text' | 'link' | 'group') {
+	function addNodeAtCenter(type: 'text' | 'link' | 'group' | 'file') {
 		const centerX = window.innerWidth / 2;
 		const centerY = window.innerHeight / 2;
 		const canvasPos = workspaceRef?.screenToCanvas(centerX, centerY);
 		const x = (canvasPos?.x ?? 0) - 100;
 		const y = (canvasPos?.y ?? 0) - 50;
+
+		if (type === 'file') {
+			openFilePicker(x + 100, y + 50);
+			return;
+		}
 
 		let node;
 		if (type === 'text') {
@@ -467,6 +544,10 @@
 							<span class="dropdown-icon">◇</span>
 							<span>Canvas</span>
 						</button>
+						<button class="dropdown-item" onclick={() => handleExport('canvas-zip')}>
+							<span class="dropdown-icon">▨</span>
+							<span>Canvas + Files</span>
+						</button>
 						<button class="dropdown-item" onclick={() => handleExport('html')}>
 							<span class="dropdown-icon">⧉</span>
 							<span>HTML</span>
@@ -500,6 +581,7 @@
 				onAddText={() => addNodeAtCenter('text')}
 				onAddLink={() => addNodeAtCenter('link')}
 				onAddGroup={() => addNodeAtCenter('group')}
+				onAddFile={isOPFSSupported() ? () => addNodeAtCenter('file') : undefined}
 			/>
 			<CanvasWorkspace bind:this={workspaceRef} onedgecontextmenu={handleEdgeContextMenu}>
 				{#each canvasStore.renderableNodes as node (node.id)}
@@ -518,6 +600,10 @@
 							<CanvasRef
 								node={node as GroupNode}
 								bind:this={blockRefs[node.id]}
+							/>
+						{:else if isFileNode(node)}
+							<FileBlock
+								node={node as FileNode}
 							/>
 						{/if}
 					</CanvasObject>

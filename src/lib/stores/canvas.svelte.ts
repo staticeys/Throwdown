@@ -6,6 +6,7 @@ import type {
 	TextNode,
 	LinkNode,
 	GroupNode,
+	FileNode,
 	NodeColor
 } from '$lib/types/canvas';
 import type { AlignmentGuides } from '$lib/utils/alignment';
@@ -15,12 +16,15 @@ import {
 	createTextNode,
 	createLinkNode,
 	createGroupNode,
+	createFileNode,
 	createEdge,
 	generateId,
 	DEFAULT_VIEWPORT,
 	isTextNode,
-	isLinkNode
+	isLinkNode,
+	isFileNode
 } from '$lib/types/canvas';
+import { deleteFileFromOPFS, deleteCanvasFiles, saveFileToOPFS } from '$lib/platform/fs-opfs';
 import { extractHashtags } from '$lib/utils/hashtags';
 import {
 	loadAppState,
@@ -123,11 +127,11 @@ class CanvasStore {
 					if (!this.tagFilters.every((tag) => nodeTags.includes(tag))) {
 						return false;
 					}
-				} else if (!isLinkNode(node)) {
+				} else if (!isLinkNode(node) && !isFileNode(node)) {
 					// Group nodes are hidden when tag filters are active
 					return false;
 				}
-				// Link nodes pass through tag filters (they can't have tags)
+				// Link and file nodes pass through tag filters (they can't have tags)
 			}
 
 			// Search term filter
@@ -139,6 +143,10 @@ class CanvasStore {
 					}
 				} else if (isLinkNode(node)) {
 					if (!node.url.toLowerCase().includes(searchLower)) {
+						return false;
+					}
+				} else if (isFileNode(node)) {
+					if (!node.filename.toLowerCase().includes(searchLower)) {
 						return false;
 					}
 				} else {
@@ -354,6 +362,9 @@ class CanvasStore {
 		delete this.history[id];
 		deleteCanvasFromDB(id);
 
+		// Clean up OPFS files for this canvas
+		deleteCanvasFiles(id);
+
 		// Switch to another canvas if we deleted the active one
 		if (this.activeCanvasId === id) {
 			const newActiveId = Object.keys(this.canvases)[0];
@@ -431,6 +442,12 @@ class CanvasStore {
 		return node;
 	}
 
+	addFileNode(x: number, y: number, filename: string, mimeType: string, size: number): FileNode {
+		const node = createFileNode(x, y, filename, mimeType, size);
+		this.addNode(node);
+		return node;
+	}
+
 	updateNode(id: string, updates: Partial<CanvasNode>): void {
 		if (!this.activeCanvas) return;
 
@@ -488,6 +505,9 @@ class CanvasStore {
 	deleteNode(id: string): void {
 		if (!this.activeCanvas) return;
 
+		// Find the node before deletion for OPFS cleanup
+		const node = this.activeCanvas.nodes.find(n => n.id === id);
+
 		this.pushSnapshot();
 
 		// Remove node
@@ -500,6 +520,11 @@ class CanvasStore {
 
 		// Remove from selection
 		this.selection = this.selection.filter(s => s !== id);
+
+		// Clean up OPFS file if file node
+		if (node && isFileNode(node)) {
+			deleteFileFromOPFS(this.activeCanvasId, node.id, node.filename);
+		}
 
 		this.triggerSave();
 	}
@@ -691,6 +716,25 @@ class CanvasStore {
 		saveCanvas(id, JSON.parse(JSON.stringify(canvas)));
 		saveSetting('activeCanvasId', id);
 		return id;
+	}
+
+	// Import canvas with files from ZIP
+	async importCanvasWithFiles(
+		canvas: CanvasFile,
+		files: Array<{ nodeId: string; file: File }>,
+		name?: string
+	): Promise<string> {
+		const canvasId = this.importCanvasData(canvas, name);
+
+		for (const { nodeId, file } of files) {
+			try {
+				await saveFileToOPFS(file, canvasId, nodeId);
+			} catch (error) {
+				console.error('Failed to restore file:', file.name, error);
+			}
+		}
+
+		return canvasId;
 	}
 
 	// Filter operations

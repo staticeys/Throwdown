@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { isTextNode, isLinkNode, isGroupNode, type NodeColor } from '$lib/types/canvas';
+	import { isOPFSSupported, saveFileToOPFS, canSaveFile } from '$lib/platform/fs-opfs';
 	import EdgeRenderer from './edge-renderer.svelte';
 	import AlignmentGuides from './alignment-guides.svelte';
 	import SelectionBox from './selection-box.svelte';
@@ -28,6 +29,9 @@
 	let isSelecting = $state(false);
 	let selectionStart = $state<{ x: number; y: number } | null>(null);
 	let selectionEnd = $state<{ x: number; y: number } | null>(null);
+
+	// File drag-drop state
+	let isDraggingFile = $state(false);
 
 	// Element reference
 	let containerEl: HTMLDivElement;
@@ -421,6 +425,70 @@
 			containerEl.style.cursor = isSpacePressed ? 'grab' : 'default';
 		}
 	}
+
+	// File drag-drop handlers
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer?.types.includes('Files')) {
+			e.dataTransfer.dropEffect = 'copy';
+			isDraggingFile = true;
+		}
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		if (e.currentTarget === e.target) {
+			isDraggingFile = false;
+		}
+	}
+
+	async function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		isDraggingFile = false;
+
+		if (!isOPFSSupported()) return;
+
+		const files = e.dataTransfer?.files;
+		if (!files || files.length === 0) return;
+
+		const dropPos = screenToCanvas(e.clientX, e.clientY);
+		const x = dropPos.x - 100;
+		const y = dropPos.y - 50;
+		const STACK_OFFSET = 20;
+
+		canvasStore.beginTransaction();
+
+		for (let i = 0; i < files.length; i++) {
+			const file = files[i];
+
+			const hasSpace = await canSaveFile(file.size);
+			if (!hasSpace) {
+				console.error('Insufficient storage quota for file:', file.name);
+				continue;
+			}
+
+			try {
+				const node = canvasStore.addFileNode(
+					x + (i * STACK_OFFSET),
+					y + (i * STACK_OFFSET),
+					file.name,
+					file.type || 'application/octet-stream',
+					file.size
+				);
+
+				await saveFileToOPFS(file, canvasStore.activeCanvasId, node.id);
+
+				if (i === 0) {
+					canvasStore.selectOnly(node.id);
+				} else {
+					canvasStore.select(node.id);
+				}
+			} catch (error) {
+				console.error('Failed to save file:', file.name, error);
+			}
+		}
+
+		canvasStore.endTransaction();
+	}
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -434,6 +502,9 @@
 	onmouseleave={handleMouseLeave}
 	onwheel={handleWheel}
 	oncontextmenu={handleContextMenu}
+	ondragover={handleDragOver}
+	ondragleave={handleDragLeave}
+	ondrop={handleDrop}
 	role="application"
 	aria-label="Canvas workspace"
 	tabindex="0"
@@ -462,6 +533,15 @@
 
 	<!-- Minimap + zoom controls -->
 	<CanvasMinimap {containerWidth} {containerHeight} />
+
+	<!-- File drop zone overlay -->
+	{#if isDraggingFile}
+		<div class="drop-zone">
+			<div class="drop-zone-content">
+				<div class="drop-zone-text">Drop files here</div>
+			</div>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -481,4 +561,28 @@
 		transform-origin: 0 0;
 	}
 
+	.drop-zone {
+		position: absolute;
+		inset: 0;
+		background: color-mix(in srgb, var(--accent) 8%, transparent);
+		border: 3px dashed var(--accent);
+		z-index: 1000;
+		pointer-events: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.drop-zone-content {
+		padding: var(--space-4) var(--space-6);
+		background: var(--bg-surface);
+		box-shadow: var(--shadow-lg);
+	}
+
+	.drop-zone-text {
+		font-family: var(--font-sans);
+		font-size: var(--font-size-md);
+		font-weight: 500;
+		color: var(--accent);
+	}
 </style>

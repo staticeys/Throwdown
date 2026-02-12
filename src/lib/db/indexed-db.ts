@@ -192,6 +192,25 @@ export async function loadAppState(): Promise<AppState> {
 	};
 }
 
+// Persistent Storage API — prevents browser from evicting OPFS/IndexedDB data
+export async function requestPersistentStorage(): Promise<boolean> {
+	if ('storage' in navigator && 'persist' in navigator.storage) {
+		const isPersisted = await navigator.storage.persisted();
+		if (!isPersisted) {
+			return await navigator.storage.persist();
+		}
+		return true;
+	}
+	return false;
+}
+
+export async function isPersistentStorage(): Promise<boolean> {
+	if ('storage' in navigator && 'persist' in navigator.storage) {
+		return await navigator.storage.persisted();
+	}
+	return false;
+}
+
 // Debounced auto-save helper
 export function createAutoSave(delayMs = 500) {
 	let timeoutId: ReturnType<typeof setTimeout> | null = null;

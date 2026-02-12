@@ -6,11 +6,13 @@
 	let {
 		onAddText,
 		onAddLink,
-		onAddGroup
+		onAddGroup,
+		onAddFile
 	}: {
 		onAddText: () => void;
 		onAddLink: () => void;
 		onAddGroup: () => void;
+		onAddFile?: () => void;
 	} = $props();
 
 	// Local state
@@ -58,6 +60,12 @@
 					<span class="menu-icon">{icons.canvas}</span>
 					<span>Group</span>
 				</button>
+				{#if onAddFile}
+					<button class="menu-item" onclick={() => handleAddMenuItem(onAddFile)}>
+						<span class="menu-icon">{icons.file}</span>
+						<span>File</span>
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</div>
