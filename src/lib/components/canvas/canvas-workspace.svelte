@@ -30,6 +30,11 @@
 	let selectionStart = $state<{ x: number; y: number } | null>(null);
 	let selectionEnd = $state<{ x: number; y: number } | null>(null);
 
+	// Right-click drag state (mouse mode)
+	let isRightDragging = $state(false);
+	let rightDragStart = $state({ x: 0, y: 0 });
+	let didRightDrag = $state(false);
+
 	// File drag-drop state
 	let isDraggingFile = $state(false);
 
@@ -76,13 +81,10 @@
 		}
 	}
 
-	// Handle mouse down - start panning or box selection
+	// Handle mouse down - start box selection, panning, or right-drag
 	function handleMouseDown(e: MouseEvent) {
-		const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-		const isMultiSelect = isMac ? e.metaKey : e.ctrlKey;
-
-		// Cmd/Ctrl + left click starts box selection
-		if (e.button === 0 && isMultiSelect && !isSpacePressed) {
+		// Left click on empty space starts box selection (nodes stop propagation)
+		if (e.button === 0 && !isSpacePressed) {
 			isSelecting = true;
 			const canvasCoords = screenToCanvas(e.clientX, e.clientY);
 			selectionStart = canvasCoords;
@@ -90,8 +92,9 @@
 			return;
 		}
 
-		// Left click on empty space pans; nodes stop propagation so this won't fire when clicking a node
-		if (e.button === 0 && !isSpacePressed) {
+		// Middle mouse button or space+left click = pan
+		if (e.button === 1 || (e.button === 0 && isSpacePressed)) {
+			e.preventDefault();
 			isPanning = true;
 			didPan = false;
 			lastMousePos = { x: e.clientX, y: e.clientY };
@@ -99,17 +102,16 @@
 			return;
 		}
 
-		// Middle mouse button or space+left click
-		if (e.button === 1 || (e.button === 0 && isSpacePressed)) {
-			e.preventDefault();
-			isPanning = true;
-			didPan = false;
+		// Right-click in mouse mode: track for potential pan
+		if (e.button === 2 && canvasStore.inputMode === 'mouse') {
+			rightDragStart = { x: e.clientX, y: e.clientY };
+			isRightDragging = false;
+			didRightDrag = false;
 			lastMousePos = { x: e.clientX, y: e.clientY };
-			containerEl.style.cursor = 'grabbing';
 		}
 	}
 
-	// Handle mouse move - pan or update selection box
+	// Handle mouse move - pan, update selection box, or right-drag pan
 	function handleMouseMove(e: MouseEvent) {
 		if (isSelecting) {
 			const canvasCoords = screenToCanvas(e.clientX, e.clientY);
@@ -123,10 +125,31 @@
 			canvasStore.pan(dx, dy);
 			lastMousePos = { x: e.clientX, y: e.clientY };
 			didPan = true;
+			return;
+		}
+
+		// Right-click drag detection (mouse mode)
+		if ((e.buttons & 2) && canvasStore.inputMode === 'mouse') {
+			const dx = e.clientX - rightDragStart.x;
+			const dy = e.clientY - rightDragStart.y;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
+			if (!isRightDragging && distance > 3) {
+				isRightDragging = true;
+				didRightDrag = true;
+				containerEl.style.cursor = 'grabbing';
+			}
+
+			if (isRightDragging) {
+				const moveDx = e.clientX - lastMousePos.x;
+				const moveDy = e.clientY - lastMousePos.y;
+				canvasStore.pan(moveDx, moveDy);
+				lastMousePos = { x: e.clientX, y: e.clientY };
+			}
 		}
 	}
 
-	// Handle mouse up - stop panning or finalize selection
+	// Handle mouse up - stop panning, finalize selection, or end right-drag
 	function handleMouseUp(e: MouseEvent) {
 		if (isSelecting && selectionStart && selectionEnd) {
 			// Calculate selection box bounds
@@ -135,43 +158,42 @@
 			const x2 = Math.max(selectionStart.x, selectionEnd.x);
 			const y2 = Math.max(selectionStart.y, selectionEnd.y);
 
-			console.log('[BoxSelect] Box bounds:', { x1, y1, x2, y2 });
-			console.log('[BoxSelect] Nodes to check:', canvasStore.nodes.length);
+			// Only process as box select if the user actually dragged (not a simple click)
+			const boxWidth = x2 - x1;
+			const boxHeight = y2 - y1;
+			const isActualDrag = boxWidth > 3 || boxHeight > 3;
 
-			// Find nodes that intersect with selection box
-			const selectedIds: string[] = [];
-			for (const node of canvasStore.nodes) {
-				const nodeX2 = node.x + node.width;
-				const nodeY2 = node.y + node.height;
+			if (isActualDrag) {
+				// Find nodes that intersect with selection box
+				const selectedIds: string[] = [];
+				for (const node of canvasStore.nodes) {
+					const nodeX2 = node.x + node.width;
+					const nodeY2 = node.y + node.height;
 
-				console.log('[BoxSelect] Checking node:', node.id, { x: node.x, y: node.y, x2: nodeX2, y2: nodeY2 });
-
-				// Check if boxes overlap (partial intersection)
-				if (!(x2 < node.x || x1 > nodeX2 || y2 < node.y || y1 > nodeY2)) {
-					console.log('[BoxSelect] Node intersects:', node.id);
-					selectedIds.push(node.id);
+					// Check if boxes overlap (partial intersection)
+					if (!(x2 < node.x || x1 > nodeX2 || y2 < node.y || y1 > nodeY2)) {
+						selectedIds.push(node.id);
+					}
 				}
-			}
 
-			console.log('[BoxSelect] Selected IDs:', selectedIds);
+				if (selectedIds.length > 0) {
+					canvasStore.setSelection(selectedIds);
+				}
 
-			// Update selection using setSelection for proper Svelte 5 reactivity
-			if (selectedIds.length > 0) {
-				canvasStore.setSelection(selectedIds);
+				// Prevent click after actual box selection so canvas click handlers don't clear the selection
+				const preventClick = (event: MouseEvent) => {
+					event.stopPropagation();
+					event.preventDefault();
+					containerEl.removeEventListener('click', preventClick, true);
+				};
+				containerEl.addEventListener('click', preventClick, true);
 			}
+			// If not an actual drag, let click propagate for deselection
 
 			// Reset selection box
 			isSelecting = false;
 			selectionStart = null;
 			selectionEnd = null;
-
-			// Prevent click after box selection so canvas click handlers don't clear the selection
-			const preventClick = (event: MouseEvent) => {
-				event.stopPropagation();
-				event.preventDefault();
-				containerEl.removeEventListener('click', preventClick, true);
-			};
-			containerEl.addEventListener('click', preventClick, true);
 			return;
 		}
 
@@ -188,6 +210,12 @@
 				};
 				containerEl.addEventListener('click', preventClick, true);
 			}
+		}
+
+		// Right-click drag end (mouse mode)
+		if (e.button === 2 && isRightDragging) {
+			isRightDragging = false;
+			containerEl.style.cursor = isSpacePressed ? 'grab' : 'default';
 		}
 	}
 
@@ -221,9 +249,28 @@
 		return null;
 	}
 
-	// Handle wheel - zoom (unless over selected/editing node with scrollable content)
+	// Zoom toward mouse position helper
+	function doZoom(e: WheelEvent) {
+		const rect = containerEl.getBoundingClientRect();
+		const mouseX = e.clientX - rect.left;
+		const mouseY = e.clientY - rect.top;
+
+		const zoomIntensity = canvasStore.inputMode === 'trackpad' ? 0.0026 : 0.002;
+		const delta = 1 - e.deltaY * zoomIntensity;
+
+		const newZoom = Math.max(0.1, Math.min(5, viewport.zoom * delta));
+		const scale = newZoom / viewport.zoom;
+
+		canvasStore.setViewport({
+			x: mouseX - (mouseX - viewport.x) * scale,
+			y: mouseY - (mouseY - viewport.y) * scale,
+			zoom: newZoom
+		});
+	}
+
+	// Handle wheel - zoom or pan depending on input mode
 	function handleWheel(e: WheelEvent) {
-		// Only allow scrolling within a node if it's selected or being edited
+		// Allow scrolling within a selected/editing node with scrollable content
 		const nodeId = getNodeIdFromElement(e.target as HTMLElement);
 		const isNodeSelected = nodeId && canvasStore.selection.includes(nodeId);
 		const isEditing = canvasStore.isEditingText;
@@ -234,24 +281,18 @@
 
 		e.preventDefault();
 
-		const rect = containerEl.getBoundingClientRect();
-		const mouseX = e.clientX - rect.left;
-		const mouseY = e.clientY - rect.top;
-
-		// Use deltaY magnitude for smoother zoom (works better with trackpads)
-		// Dampening factor: smaller = less sensitive, larger = more sensitive
-		const zoomIntensity = 0.002;
-		const delta = 1 - e.deltaY * zoomIntensity;
-
-		// Zoom toward mouse position
-		const newZoom = Math.max(0.1, Math.min(5, viewport.zoom * delta));
-		const scale = newZoom / viewport.zoom;
-
-		canvasStore.setViewport({
-			x: mouseX - (mouseX - viewport.x) * scale,
-			y: mouseY - (mouseY - viewport.y) * scale,
-			zoom: newZoom
-		});
+		if (canvasStore.inputMode === 'trackpad') {
+			if (e.ctrlKey) {
+				// Pinch-to-zoom (trackpad sends ctrlKey with pinch gestures)
+				doZoom(e);
+			} else {
+				// Two-finger scroll = pan
+				canvasStore.pan(-e.deltaX, -e.deltaY);
+			}
+		} else {
+			// Mouse mode: wheel always zooms
+			doZoom(e);
+		}
 	}
 
 	// Handle keyboard events
@@ -382,10 +423,18 @@
 		}
 	}
 
-	// Prevent context menu on middle click
+	// Prevent context menu on middle click or after right-drag pan
 	function handleContextMenu(e: MouseEvent) {
 		if (e.button === 1) {
 			e.preventDefault();
+			return;
+		}
+
+		// Suppress context menu after right-drag pan in mouse mode
+		if (canvasStore.inputMode === 'mouse' && didRightDrag) {
+			e.preventDefault();
+			e.stopPropagation();
+			didRightDrag = false;
 		}
 	}
 
@@ -412,7 +461,7 @@
 		return () => observer.disconnect();
 	});
 
-	// Handle mouse leave - stop panning or selection if mouse leaves window
+	// Handle mouse leave - stop panning, selection, or right-drag if mouse leaves window
 	function handleMouseLeave(e: MouseEvent) {
 		if (isSelecting) {
 			isSelecting = false;
@@ -422,6 +471,11 @@
 
 		if (isPanning) {
 			isPanning = false;
+			containerEl.style.cursor = isSpacePressed ? 'grab' : 'default';
+		}
+
+		if (isRightDragging) {
+			isRightDragging = false;
 			containerEl.style.cursor = isSpacePressed ? 'grab' : 'default';
 		}
 	}

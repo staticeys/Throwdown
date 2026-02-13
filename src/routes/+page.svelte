@@ -14,9 +14,9 @@
 	import ThemeToggle from '$lib/components/ui/theme-toggle.svelte';
 	import CanvasTabs from '$lib/components/ui/canvas-tabs.svelte';
 	import TipsOverlay from '$lib/components/ui/tips-overlay.svelte';
-	import { downloadCanvas, downloadHtml, downloadCanvasWithFiles, importCanvas, importCanvasFromZip, exportPdf } from '$lib/db/canvas-io';
+	import { downloadCanvas, downloadHtml, downloadCanvasWithFiles, importCanvas, importCanvasFromZip, exportPdf, exportGroupAsHtml, exportGroupAsPdf } from '$lib/db/canvas-io';
 	import type { ContextMenuItem } from '$lib/components/ui/context-menu.svelte';
-	import { isTextNode, isLinkNode, isGroupNode, isFileNode, createFileNode, COLOR_PRESETS } from '$lib/types/canvas';
+	import { isTextNode, isLinkNode, isGroupNode, isFileNode, createFileNode, COLOR_PRESETS, ASPECT_RATIO_PRESETS } from '$lib/types/canvas';
 	import type { TextNode, LinkNode, GroupNode, FileNode } from '$lib/types/canvas';
 	import { parseClipboard } from '$lib/utils/paste-detection';
 	import { icons } from '$lib/components/icons';
@@ -37,8 +37,9 @@
 	// Track last mouse position for paste
 	let lastMousePos = $state({ x: 0, y: 0 });
 
-	// Header export dropdown state
+	// Header dropdown states
 	let showExportMenu = $state(false);
+	let showControlsMenu = $state(false);
 
 	// Import canvas file (.canvas, .json, or .zip with files)
 	async function handleImport() {
@@ -254,6 +255,79 @@
 				},
 				disabled: false
 			});
+		}
+
+		// Add group-specific submenus (Size, Export)
+		if (node && isGroupNode(node) && !hasMultiple) {
+			const sizeChildren = ASPECT_RATIO_PRESETS.map(preset => {
+				const isActive = preset.value === null
+					? !node.aspectRatio
+					: node.aspectRatio === preset.value;
+				return {
+					label: preset.label,
+					icon: '',
+					action: () => {
+						if (!nodeId) return;
+						canvasStore.updateNode(nodeId, { aspectRatio: preset.value });
+						if (preset.value !== null) {
+							const currentNode = canvasStore.nodes.find(n => n.id === nodeId);
+							if (currentNode) {
+								const newHeight = currentNode.width / preset.value;
+								canvasStore.resizeNode(nodeId, currentNode.width, Math.max(80, newHeight));
+							}
+						}
+					},
+					checked: isActive
+				};
+			});
+
+			menuItems.push(
+				{ label: '', icon: '', action: () => {}, separator: true },
+				{
+					label: 'Size',
+					icon: '',
+					action: () => {},
+					children: sizeChildren
+				},
+				{
+					label: 'Export',
+					icon: '',
+					action: () => {},
+					children: [
+						{
+							label: 'As HTML',
+							icon: icons.export,
+							action: () => {
+								if (nodeId) {
+									const groupNode = canvasStore.nodes.find(n => n.id === nodeId);
+									if (groupNode && isGroupNode(groupNode)) {
+										exportGroupAsHtml(groupNode, canvasStore.nodes, canvasStore.edges);
+									}
+								}
+							}
+						},
+						{
+							label: 'As PDF',
+							icon: icons.export,
+							action: () => {
+								if (nodeId) {
+									const groupNode = canvasStore.nodes.find(n => n.id === nodeId);
+									if (groupNode && isGroupNode(groupNode)) {
+										exportGroupAsPdf(groupNode, canvasStore.nodes, canvasStore.edges);
+									}
+								}
+							}
+						},
+						{
+							label: 'To New Canvas',
+							icon: icons.canvas,
+							action: () => {
+								if (nodeId) canvasStore.extractGroupToCanvas(nodeId);
+							}
+						}
+					]
+				}
+			);
 		}
 
 		// Determine active color: highlight only if all selected nodes share the same color
@@ -524,6 +598,41 @@
 
 			<CanvasTabs />
 
+			<div class="header-dropdown">
+				<button
+					class="header-btn header-btn-label"
+					class:active={showControlsMenu}
+					onclick={() => (showControlsMenu = !showControlsMenu)}
+					title="Input controls"
+				>
+					{canvasStore.inputMode === 'trackpad' ? icons.trackpad : icons.mouse}
+					<span class="btn-label">Controls</span>
+				</button>
+				{#if showControlsMenu}
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<div class="dropdown-backdrop" onclick={() => (showControlsMenu = false)}></div>
+					<div class="dropdown-menu">
+						<button
+							class="dropdown-item"
+							class:selected={canvasStore.inputMode === 'trackpad'}
+							onclick={() => { canvasStore.setInputMode('trackpad'); showControlsMenu = false; }}
+						>
+							<span class="dropdown-icon">{icons.trackpad}</span>
+							<span>Trackpad</span>
+						</button>
+						<button
+							class="dropdown-item"
+							class:selected={canvasStore.inputMode === 'mouse'}
+							onclick={() => { canvasStore.setInputMode('mouse'); showControlsMenu = false; }}
+						>
+							<span class="dropdown-icon">{icons.mouse}</span>
+							<span>Mouse</span>
+						</button>
+					</div>
+				{/if}
+			</div>
+
 			<button class="header-btn" onclick={handleImport} title="Import Canvas">
 				{icons.import}
 			</button>
@@ -674,6 +783,25 @@
 	.header-btn.active {
 		color: var(--text-primary);
 		background-color: var(--bg-elevated);
+	}
+
+	.header-btn-label {
+		width: auto;
+		gap: var(--space-1);
+		padding: 0 var(--space-2);
+	}
+
+	.btn-label {
+		font-family: var(--font-sans);
+		font-size: 11px;
+	}
+
+	.dropdown-item.selected {
+		color: var(--accent);
+	}
+
+	.dropdown-item.selected .dropdown-icon {
+		color: var(--accent);
 	}
 
 	.header-dropdown {

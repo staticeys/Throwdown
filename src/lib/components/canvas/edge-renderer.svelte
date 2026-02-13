@@ -253,6 +253,9 @@
 		height: 1px;
 		pointer-events: none;
 		overflow: visible;
+		/* Place edges above group nodes (z-index: 0) but below regular nodes (z-index: 2)
+		   so edges passing through groups remain interactive */
+		z-index: 1;
 	}
 
 	.edge-group {

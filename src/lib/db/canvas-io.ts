@@ -1,9 +1,11 @@
-import type { CanvasFile, CanvasNode, CanvasEdge } from '$lib/types/canvas';
+import type { CanvasFile, CanvasNode, CanvasEdge, GroupNode } from '$lib/types/canvas';
 import { getMimeTypeFromFilename } from '$lib/types/canvas';
+import { getContainedNodes } from '$lib/utils/geometry';
 import { loadFileFromOPFS, saveFileToOPFS } from '$lib/platform/fs-opfs';
 import JSZip from 'jszip';
 import { generateHtml } from './export-html';
-export { exportPdf } from './export-pdf';
+import { exportPdf } from './export-pdf';
+export { exportPdf };
 
 // Validate that an object is a valid CanvasFile
 function validateCanvasFile(data: unknown): data is CanvasFile {
@@ -59,6 +61,8 @@ function sanitizeForExport(canvas: CanvasFile): { nodes: CanvasNode[]; edges: Ca
 		if (sanitized.type === 'file') {
 			sanitized.file = sanitized.filename;
 		}
+		// Strip extension fields not in JSON Canvas spec
+		delete sanitized.aspectRatio;
 		return sanitized as CanvasNode;
 	});
 	const edges = canvas.edges.map(edge => {
@@ -397,4 +401,34 @@ function triggerDownload(blob: Blob, filename: string): void {
 	a.click();
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
+}
+
+// Build a temporary CanvasFile from a group's contained nodes and edges
+function buildGroupCanvas(group: GroupNode, allNodes: CanvasNode[], allEdges: CanvasEdge[]): CanvasFile {
+	const containedNodes = getContainedNodes(group, allNodes);
+	const containedIds = new Set(containedNodes.map((n) => n.id));
+	const containedEdges = allEdges.filter(
+		(e) => containedIds.has(e.fromNode) && containedIds.has(e.toNode)
+	);
+	return {
+		nodes: containedNodes,
+		edges: containedEdges,
+		'x-metadata': {
+			name: group.label || 'Group',
+			created: new Date().toISOString(),
+			modified: new Date().toISOString()
+		}
+	};
+}
+
+// Export a group's contents as a self-contained HTML file
+export function exportGroupAsHtml(group: GroupNode, allNodes: CanvasNode[], allEdges: CanvasEdge[]): void {
+	const canvas = buildGroupCanvas(group, allNodes, allEdges);
+	downloadHtml(canvas, group.label || 'Group');
+}
+
+// Export a group's contents as PDF via browser print dialog
+export function exportGroupAsPdf(group: GroupNode, allNodes: CanvasNode[], allEdges: CanvasEdge[]): void {
+	const canvas = buildGroupCanvas(group, allNodes, allEdges);
+	exportPdf(canvas, group.label || 'Group');
 }

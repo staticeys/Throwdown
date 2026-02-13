@@ -30,6 +30,7 @@ import {
 	loadAppState,
 	saveCanvas,
 	saveSetting,
+	loadSetting,
 	deleteCanvas as deleteCanvasFromDB,
 	createAutoSave
 } from '$lib/db/indexed-db';
@@ -60,6 +61,9 @@ class CanvasStore {
 
 	// Text editing state (for contextual UI hints)
 	isEditingText = $state(false);
+
+	// Input mode: 'trackpad' or 'mouse'
+	inputMode = $state<'trackpad' | 'mouse'>('trackpad');
 
 	// Auto-save instance
 	private autoSave = createAutoSave(500);
@@ -179,6 +183,12 @@ class CanvasStore {
 			this.canvases = state.canvases;
 			this.activeCanvasId = state.activeCanvasId;
 			this.selection = [];
+
+			// Load input mode preference
+			const savedInputMode = await loadSetting<'trackpad' | 'mouse'>('inputMode');
+			if (savedInputMode) {
+				this.inputMode = savedInputMode;
+			}
 		} catch (error) {
 			console.error('Failed to load app state:', error);
 			// Create default canvas on error
@@ -188,6 +198,16 @@ class CanvasStore {
 		} finally {
 			this.isLoading = false;
 		}
+	}
+
+	// Input mode toggle
+	async setInputMode(mode: 'trackpad' | 'mouse'): Promise<void> {
+		this.inputMode = mode;
+		await saveSetting('inputMode', mode);
+	}
+
+	async toggleInputMode(): Promise<void> {
+		await this.setInputMode(this.inputMode === 'trackpad' ? 'mouse' : 'trackpad');
 	}
 
 	// Save current canvas (triggers auto-save)
@@ -370,6 +390,51 @@ class CanvasStore {
 			const newActiveId = Object.keys(this.canvases)[0];
 			this.switchCanvas(newActiveId);
 		}
+	}
+
+	extractGroupToCanvas(groupId: string): void {
+		const group = this.nodes.find((n) => n.id === groupId);
+		if (!group || group.type !== 'group') return;
+
+		const containedNodes = getContainedNodes(group, this.nodes);
+		if (containedNodes.length === 0) return;
+
+		// Build ID mapping for deep clone
+		const idMap = new Map<string, string>();
+		for (const n of containedNodes) {
+			idMap.set(n.id, generateId());
+		}
+
+		// Clone nodes with new IDs, re-origin relative to group top-left
+		const clonedNodes: CanvasNode[] = containedNodes.map((n) => ({
+			...JSON.parse(JSON.stringify(n)),
+			id: idMap.get(n.id)!,
+			x: n.x - group.x,
+			y: n.y - group.y
+		}));
+
+		// Filter and clone edges where both endpoints are in the group
+		const containedIds = new Set(containedNodes.map((n) => n.id));
+		const clonedEdges: CanvasEdge[] = this.edges
+			.filter((e) => containedIds.has(e.fromNode) && containedIds.has(e.toNode))
+			.map((e) => ({
+				...JSON.parse(JSON.stringify(e)),
+				id: generateId(),
+				fromNode: idMap.get(e.fromNode)!,
+				toNode: idMap.get(e.toNode)!
+			}));
+
+		// Create new canvas with cloned contents
+		const label = (group as GroupNode).label || 'Extracted Group';
+		const canvasId = generateId();
+		const canvas = createCanvas(label);
+		canvas.nodes = clonedNodes;
+		canvas.edges = clonedEdges;
+		this.canvases[canvasId] = canvas;
+		this.activeCanvasId = canvasId;
+		this.selection = [];
+		saveCanvas(canvasId, JSON.parse(JSON.stringify(canvas)));
+		saveSetting('activeCanvasId', canvasId);
 	}
 
 	// Viewport operations

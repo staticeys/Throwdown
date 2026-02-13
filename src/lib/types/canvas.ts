@@ -32,6 +32,7 @@ export interface GroupNode extends CanvasNodeBase {
 	label?: string;
 	background?: string;
 	backgroundStyle?: 'cover' | 'ratio' | 'repeat';
+	aspectRatio?: number | null;
 }
 
 // File node - references files stored in OPFS
@@ -101,6 +102,17 @@ export const COLOR_PRESETS: Record<string, string> = {
 	'5': '#06b6d4', // cyan
 	'6': '#8b5cf6'  // purple
 };
+
+// Aspect ratio presets for group nodes (width/height, portrait orientation)
+export const ASPECT_RATIO_PRESETS: { label: string; value: number | null }[] = [
+	{ label: 'Free', value: null },
+	{ label: 'Square (1:1)', value: 1 },
+	{ label: 'Screen (3:4)', value: 3 / 4 },
+	{ label: 'Photo (2:3)', value: 2 / 3 },
+	{ label: 'A-Series Paper', value: 1 / Math.SQRT2 },
+	{ label: 'US Letter', value: 8.5 / 11 },
+	{ label: 'Widescreen (9:16)', value: 9 / 16 },
+];
 
 // Helper to resolve color value (preset string "1"-"6" → hex, or pass through hex values)
 export function resolveColor(color: NodeColor | undefined): string | undefined {

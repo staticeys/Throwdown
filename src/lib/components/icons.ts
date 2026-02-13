@@ -53,6 +53,10 @@ export const icons = {
 	group: '⬚',
 	duplicate: '⧉',
 
+	// Input mode
+	trackpad: '⊟',
+	mouse: '▲',
+
 	// Help
 	keyboard: '⌨',
 	help: '?'

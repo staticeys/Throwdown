@@ -34,7 +34,10 @@
 				return [
 					{ text: 'Double-click to create text node' },
 					{ text: 'Right-click for link/group nodes' },
-					{ text: 'Drag canvas to pan, scroll to zoom' },
+					{ text: canvasStore.inputMode === 'trackpad'
+						? 'Scroll to pan, pinch to zoom'
+						: 'Scroll to zoom, right-drag to pan' },
+					{ text: 'Drag empty space to box select' },
 					{ text: `${modKey}+V to paste text node` }
 				];
 			case 'single':
