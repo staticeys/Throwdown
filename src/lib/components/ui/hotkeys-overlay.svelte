@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { canvasStore } from '$lib/stores/canvas.svelte';
+
 	let { onClose }: { onClose: () => void } = $props();
 
 	// Close on escape
@@ -32,8 +34,15 @@
 				<h3>Navigation</h3>
 				<dl>
 					<div class="shortcut"><dt><kbd>Space</kbd> + drag</dt><dd>Pan canvas</dd></div>
-					<div class="shortcut"><dt>Scroll</dt><dd>Zoom in/out</dd></div>
-					<div class="shortcut"><dt><kbd>{mod}</kbd> + drag</dt><dd>Box select</dd></div>
+					<div class="shortcut"><dt>Middle-click drag</dt><dd>Pan canvas</dd></div>
+					{#if canvasStore.inputMode === 'trackpad'}
+						<div class="shortcut"><dt>Scroll</dt><dd>Pan canvas</dd></div>
+						<div class="shortcut"><dt>Pinch</dt><dd>Zoom in/out</dd></div>
+					{:else}
+						<div class="shortcut"><dt>Scroll</dt><dd>Zoom in/out</dd></div>
+						<div class="shortcut"><dt>Right-click drag</dt><dd>Pan canvas</dd></div>
+					{/if}
+					<div class="shortcut"><dt>Drag empty space</dt><dd>Box select</dd></div>
 				</dl>
 			</section>
 

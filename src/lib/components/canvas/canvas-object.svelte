@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import type { CanvasNode } from '$lib/types/canvas';
-	import { resolveColor } from '$lib/types/canvas';
+	import { resolveColor, isGroupNode } from '$lib/types/canvas';
 	import { calculateAlignments } from '$lib/utils/alignment';
 	import { getContainedNodes } from '$lib/utils/geometry';
 
@@ -167,8 +167,15 @@
 		const dx = (e.clientX - resizeStart.x) / zoom;
 		const dy = (e.clientY - resizeStart.y) / zoom;
 
-		const newWidth = Math.max(MIN_WIDTH, resizeStart.width + dx);
-		const newHeight = Math.max(MIN_HEIGHT, resizeStart.height + dy);
+		let newWidth = Math.max(MIN_WIDTH, resizeStart.width + dx);
+		let newHeight = Math.max(MIN_HEIGHT, resizeStart.height + dy);
+
+		// Constrain to aspect ratio for group nodes
+		if (isGroupNode(node) && node.aspectRatio) {
+			newHeight = Math.max(MIN_HEIGHT, newWidth / node.aspectRatio);
+			newWidth = Math.max(MIN_WIDTH, newHeight * node.aspectRatio);
+		}
+
 		canvasStore.resizeNode(node.id, newWidth, newHeight);
 	}
 
@@ -244,6 +251,7 @@
 		/* overflow controlled via inline style - hidden when not selected, visible when selected */
 		user-select: none;
 		isolation: isolate; /* Creates stacking context so resize handle z-index stays local */
+		z-index: 2; /* Above edge layer (z-index: 1) */
 	}
 
 	.canvas-object:hover {
@@ -332,6 +340,7 @@
 		border-color: var(--border-strong);
 		box-shadow: none;
 		pointer-events: none; /* Allow clicks to pass through to nodes below */
+		z-index: 0; /* Below edge layer (z-index: 1) so edges through groups stay interactive */
 	}
 
 	.canvas-object.is-group:hover {

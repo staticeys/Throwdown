@@ -1,3 +1,19 @@
+<script module lang="ts">
+	export interface ContextMenuItem {
+		label: string;
+		icon?: string;
+		action: () => void;
+		disabled?: boolean;
+		separator?: boolean;
+		checked?: boolean;
+		// Color row: renders a row of color dots instead of a normal item
+		colors?: { hex: string; value: string | undefined; active: boolean }[];
+		onColorSelect?: (value: string | undefined) => void;
+		// Submenu: renders children in a nested panel on hover
+		children?: ContextMenuItem[];
+	}
+</script>
+
 <script lang="ts">
 	import { icons } from '$lib/components/icons';
 
@@ -14,21 +30,13 @@
 		onClose: () => void;
 	} = $props();
 
-	export interface ContextMenuItem {
-		label: string;
-		icon?: string;
-		action: () => void;
-		disabled?: boolean;
-		separator?: boolean;
-		checked?: boolean;
-		// Color row: renders a row of color dots instead of a normal item
-		colors?: { hex: string; value: string | undefined; active: boolean }[];
-		onColorSelect?: (value: string | undefined) => void;
-	}
-
 	// Adjust position to keep menu in viewport
 	let menuEl: HTMLDivElement;
 	let menuRect = $state<DOMRect | null>(null);
+
+	// Submenu state
+	let activeSubmenuIndex = $state<number | null>(null);
+	let submenuTimer = $state<ReturnType<typeof setTimeout> | null>(null);
 
 	// Compute adjusted positions reactively
 	let adjustedX = $derived.by(() => {
@@ -49,6 +57,12 @@
 		return y;
 	});
 
+	// Whether the submenu should open to the left (not enough space on the right)
+	let submenuFlipLeft = $derived.by(() => {
+		if (!menuRect) return false;
+		return menuRect.right + 160 > window.innerWidth - 10;
+	});
+
 	$effect(() => {
 		if (menuEl) {
 			menuRect = menuEl.getBoundingClientRect();
@@ -57,6 +71,25 @@
 
 	// Handle item click
 	function handleItemClick(item: ContextMenuItem) {
+		if (item.disabled || item.children) return;
+		item.action();
+		onClose();
+	}
+
+	// Submenu hover handlers
+	function handleSubmenuEnter(index: number) {
+		if (submenuTimer) clearTimeout(submenuTimer);
+		activeSubmenuIndex = index;
+	}
+
+	function handleSubmenuLeave() {
+		if (submenuTimer) clearTimeout(submenuTimer);
+		submenuTimer = setTimeout(() => {
+			activeSubmenuIndex = null;
+		}, 150);
+	}
+
+	function handleSubmenuItemClick(item: ContextMenuItem) {
 		if (item.disabled) return;
 		item.action();
 		onClose();
@@ -94,7 +127,7 @@
 		role="menu"
 		tabindex="-1"
 	>
-		{#each items as item}
+		{#each items as item, i}
 			{#if item.colors}
 				<div class="color-row" role="menuitem">
 					{#each item.colors as c}
@@ -116,6 +149,54 @@
 				</div>
 			{:else if item.separator}
 				<div class="separator"></div>
+			{:else if item.children}
+				<!-- Submenu trigger -->
+				<div
+					class="submenu-wrapper"
+					onmouseenter={() => handleSubmenuEnter(i)}
+					onmouseleave={handleSubmenuLeave}
+				>
+					<button
+						class="menu-item"
+						role="menuitem"
+						aria-haspopup="true"
+						aria-expanded={activeSubmenuIndex === i}
+					>
+						{#if item.icon}
+							<span class="item-icon">{item.icon}</span>
+						{/if}
+						<span class="item-label">{item.label}</span>
+						<span class="submenu-arrow">▸</span>
+					</button>
+					{#if activeSubmenuIndex === i}
+						<div
+							class="context-menu submenu"
+							class:flip-left={submenuFlipLeft}
+							role="menu"
+						>
+							{#each item.children as child}
+								{#if child.separator}
+									<div class="separator"></div>
+								{:else}
+									<button
+										class="menu-item"
+										class:disabled={child.disabled}
+										onclick={() => handleSubmenuItemClick(child)}
+										disabled={child.disabled}
+										role="menuitem"
+									>
+										{#if child.checked !== undefined}
+											<span class="item-check">{child.checked ? '✓' : ''}</span>
+										{:else if child.icon}
+											<span class="item-icon">{child.icon}</span>
+										{/if}
+										<span class="item-label">{child.label}</span>
+									</button>
+								{/if}
+							{/each}
+						</div>
+					{/if}
+				</div>
 			{:else}
 				<button
 					class="menu-item"
@@ -236,5 +317,31 @@
 
 	.color-dot.no-color.active {
 		border-color: var(--text-primary);
+	}
+
+	/* Submenu styles */
+	.submenu-wrapper {
+		position: relative;
+	}
+
+	.submenu-arrow {
+		flex-shrink: 0;
+		font-size: 10px;
+		color: var(--text-muted);
+		margin-left: auto;
+	}
+
+	.submenu {
+		position: absolute;
+		top: -4px;
+		left: 100%;
+		margin-left: 2px;
+	}
+
+	.submenu.flip-left {
+		left: auto;
+		right: 100%;
+		margin-left: 0;
+		margin-right: 2px;
 	}
 </style>
