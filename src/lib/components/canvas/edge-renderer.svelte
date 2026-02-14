@@ -205,12 +205,13 @@
 			<!-- Label (outside group so it doesn't interfere with interaction) -->
 			{#if midpoint}
 				{#if isEditing}
-					<!-- Label editing input -->
+					<!-- Label editing input — same position as display label -->
 					<foreignObject
-						x={midpoint.x - 75}
-						y={midpoint.y - 28}
-						width="150"
-						height="36"
+						x={midpoint.x - 100}
+						y={midpoint.y - 10}
+						width="200"
+						height="20"
+						class="edge-label-container"
 					>
 						<input
 							type="text"
@@ -226,9 +227,9 @@
 					<!-- svelte-ignore a11y_click_events_have_key_events -->
 					<foreignObject
 						x={midpoint.x - 100}
-						y={midpoint.y - 28}
+						y={midpoint.y - 10}
 						width="200"
-						height="24"
+						height="20"
 						class="edge-label-container"
 						ondblclick={(e) => handleDoubleClick(edge, e)}
 					>
@@ -286,11 +287,11 @@
 	.edge-label {
 		display: flex;
 		justify-content: center;
-		padding: var(--space-0) calc(var(--space-1) + var(--space-0));
-		background: var(--bg-surface);
+		padding: 1px var(--space-1);
+		background: var(--bg-canvas);
 		border-radius: var(--radius-sm);
 		font-family: var(--font-sans);
-		font-size: 12px;
+		font-size: 11px;
 		color: var(--text-secondary);
 		white-space: nowrap;
 		max-width: 200px;
@@ -303,15 +304,17 @@
 	}
 
 	.edge-label-input {
-		width: 100%;
-		padding: var(--space-1) var(--space-2);
+		width: fit-content;
+		max-width: 200px;
+		margin: 0 auto;
+		display: block;
+		padding: 1px var(--space-1);
 		font-family: var(--font-sans);
-		font-size: 12px;
+		font-size: 11px;
 		text-align: center;
-		background: var(--bg-surface);
-		border: 1px solid var(--accent);
-		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
+		background: var(--bg-canvas);
+		border: none;
 		outline: none;
-		box-shadow: var(--shadow-sm);
 	}
 </style>

@@ -142,6 +142,9 @@
 
 	// Handle right-click context menu
 	function handleContextMenu(e: MouseEvent) {
+		// Allow native context menu when editing text (spell check, copy/paste, etc.)
+		if (canvasStore.isEditingText) return;
+
 		e.preventDefault();
 
 		lastMousePos = { x: e.clientX, y: e.clientY };
