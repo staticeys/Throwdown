@@ -86,14 +86,15 @@
 
 	.group-label {
 		position: absolute;
-		top: -24px;
+		top: -36px;
 		left: 0;
 		display: flex;
 		align-items: center;
 		gap: var(--space-1);
 		font-family: var(--font-sans);
-		font-size: 12px;
-		font-weight: 500;
+		font-size: 21px;
+		font-weight: 600;
+		line-height: 1.3;
 		color: var(--text-secondary);
 		cursor: text;
 		user-select: none;
@@ -101,30 +102,28 @@
 	}
 
 	.label-text {
-		padding: var(--space-0) calc(var(--space-1) + var(--space-0));
-		background: var(--bg-surface);
-		border-radius: var(--radius-sm);
 		white-space: nowrap;
-		max-width: 200px;
+		max-width: 300px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
 	.label-input {
 		min-width: 80px;
-		max-width: 200px;
-		padding: var(--space-0) calc(var(--space-1) + var(--space-0));
+		max-width: 300px;
+		padding: 0;
 		font-family: var(--font-sans);
-		font-size: var(--font-size-xs);
-		font-weight: 500;
+		font-size: inherit;
+		font-weight: inherit;
+		line-height: inherit;
 		color: var(--text-primary);
-		background: var(--bg-surface);
-		border: 1px solid var(--accent);
-		border-radius: var(--radius-sm);
+		background: transparent;
+		border: none;
+		border-radius: 0;
 		outline: none;
 	}
 
 	.label-input:focus {
-		box-shadow: 0 0 0 2px var(--accent-muted);
+		outline: none;
 	}
 </style>
