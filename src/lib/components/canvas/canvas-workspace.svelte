@@ -255,7 +255,7 @@
 		const mouseX = e.clientX - rect.left;
 		const mouseY = e.clientY - rect.top;
 
-		const zoomIntensity = canvasStore.inputMode === 'trackpad' ? 0.0026 : 0.002;
+		const zoomIntensity = canvasStore.inputMode === 'trackpad' ? 0.005 : 0.002;
 		const delta = 1 - e.deltaY * zoomIntensity;
 
 		const newZoom = Math.max(0.1, Math.min(5, viewport.zoom * delta));
