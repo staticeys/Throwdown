@@ -22,6 +22,7 @@ import {
 	DEFAULT_VIEWPORT,
 	isTextNode,
 	isLinkNode,
+	isGroupNode,
 	isFileNode
 } from '$lib/types/canvas';
 import { deleteFileFromOPFS, deleteCanvasFiles, saveFileToOPFS } from '$lib/platform/fs-opfs';
@@ -586,9 +587,12 @@ class CanvasStore {
 		// Remove from selection
 		this.selection = this.selection.filter(s => s !== id);
 
-		// Clean up OPFS file if file node
+		// Clean up OPFS files
 		if (node && isFileNode(node)) {
 			deleteFileFromOPFS(this.activeCanvasId, node.id, node.filename);
+		}
+		if (node && isGroupNode(node) && node.background) {
+			deleteFileFromOPFS(this.activeCanvasId, node.id, node.background);
 		}
 
 		this.triggerSave();
