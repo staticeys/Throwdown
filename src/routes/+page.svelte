@@ -21,7 +21,7 @@
 	import { parseClipboard } from '$lib/utils/paste-detection';
 	import { icons } from '$lib/components/icons';
 	import { cleanTrackingFromUrl } from '$lib/utils/url-cleaner';
-	import { isOPFSSupported, saveFileToOPFS, canSaveFile } from '$lib/platform/fs-opfs';
+	import { isOPFSSupported, saveFileToOPFS, deleteFileFromOPFS, canSaveFile } from '$lib/platform/fs-opfs';
 	import { requestPersistentStorage } from '$lib/db/indexed-db';
 
 	// Component refs for triggering edit mode
@@ -284,6 +284,35 @@
 				};
 			});
 
+			// Insert "Background" ratio after "Free" when group has a background image
+			if (node.background) {
+				sizeChildren.splice(1, 0, {
+					label: 'Background',
+					icon: '',
+					action: async () => {
+						if (!nodeId || !node.background) return;
+						const { loadFileFromOPFS } = await import('$lib/platform/fs-opfs');
+						const file = await loadFileFromOPFS(canvasStore.activeCanvasId, nodeId, node.background);
+						if (!file) return;
+						const url = URL.createObjectURL(file);
+						const img = new Image();
+						img.onload = () => {
+							const ratio = img.naturalWidth / img.naturalHeight;
+							URL.revokeObjectURL(url);
+							canvasStore.updateNode(nodeId, { aspectRatio: ratio });
+							const currentNode = canvasStore.nodes.find(n => n.id === nodeId);
+							if (currentNode) {
+								const newHeight = currentNode.width / ratio;
+								canvasStore.resizeNode(nodeId, currentNode.width, Math.max(80, newHeight));
+							}
+						};
+						img.onerror = () => URL.revokeObjectURL(url);
+						img.src = url;
+					},
+					checked: false
+				});
+			}
+
 			menuItems.push(
 				{ label: '', icon: '', action: () => {}, separator: true },
 				{
@@ -331,6 +360,80 @@
 					]
 				}
 			);
+
+			// Background submenu
+			const bgChildren: ContextMenuItem[] = [
+				{
+					label: 'Set Image...',
+					icon: '',
+					action: () => {
+						if (!nodeId) return;
+						const input = document.createElement('input');
+						input.type = 'file';
+						input.accept = 'image/*';
+						input.onchange = async () => {
+							const file = input.files?.[0];
+							if (!file || !nodeId) return;
+							await saveFileToOPFS(file, canvasStore.activeCanvasId, nodeId);
+							canvasStore.updateNode(nodeId, {
+								background: file.name,
+								backgroundStyle: node.backgroundStyle || 'cover'
+							});
+						};
+						input.click();
+					}
+				}
+			];
+
+			if (node.background) {
+				bgChildren.push(
+					{ label: '', icon: '', action: () => {}, separator: true },
+					{
+						label: 'Cover',
+						icon: '',
+						action: () => {
+							if (nodeId) canvasStore.updateNode(nodeId, { backgroundStyle: 'cover' });
+						},
+						checked: node.backgroundStyle === 'cover' || !node.backgroundStyle
+					},
+					{
+						label: 'Fit',
+						icon: '',
+						action: () => {
+							if (nodeId) canvasStore.updateNode(nodeId, { backgroundStyle: 'ratio' });
+						},
+						checked: node.backgroundStyle === 'ratio'
+					},
+					{
+						label: 'Repeat',
+						icon: '',
+						action: () => {
+							if (nodeId) canvasStore.updateNode(nodeId, { backgroundStyle: 'repeat' });
+						},
+						checked: node.backgroundStyle === 'repeat'
+					},
+					{ label: '', icon: '', action: () => {}, separator: true },
+					{
+						label: 'Remove',
+						icon: '',
+						action: () => {
+							if (!nodeId || !node.background) return;
+							deleteFileFromOPFS(canvasStore.activeCanvasId, nodeId, node.background);
+							canvasStore.updateNode(nodeId, {
+								background: undefined,
+								backgroundStyle: undefined
+							} as any);
+						}
+					}
+				);
+			}
+
+			menuItems.push({
+				label: 'Background',
+				icon: '',
+				action: () => {},
+				children: bgChildren
+			});
 		}
 
 		// Determine active color: highlight only if all selected nodes share the same color

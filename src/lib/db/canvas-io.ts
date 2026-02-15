@@ -260,9 +260,10 @@ export async function exportCanvasWithFiles(
 	const canvasJson = exportCanvas(canvas);
 	zip.file('canvas.json', canvasJson);
 
-	// Add files from OPFS
+	// Add files from OPFS (file nodes + group background images)
 	const fileNodes = canvas.nodes.filter(n => n.type === 'file');
-	if (fileNodes.length > 0) {
+	const groupsWithBg = canvas.nodes.filter(n => n.type === 'group' && (n as any).background);
+	if (fileNodes.length > 0 || groupsWithBg.length > 0) {
 		const filesDir = zip.folder('files');
 		if (filesDir) {
 			for (const node of fileNodes) {
@@ -275,6 +276,18 @@ export async function exportCanvasWithFiles(
 					}
 				} catch (error) {
 					console.warn('Failed to load file for export:', fileNode.filename, error);
+				}
+			}
+			for (const node of groupsWithBg) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const bgFilename = (node as any).background as string;
+				try {
+					const file = await loadFileFromOPFS(canvasId, node.id, bgFilename);
+					if (file) {
+						filesDir.file(`${node.id}-${bgFilename}`, file);
+					}
+				} catch (error) {
+					console.warn('Failed to load background for export:', bgFilename, error);
 				}
 			}
 		}
