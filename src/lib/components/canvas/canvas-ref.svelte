@@ -2,10 +2,13 @@
 	import { untrack } from 'svelte';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { loadFileFromOPFS } from '$lib/platform/fs-opfs';
-	import type { GroupNode } from '$lib/types/canvas';
+	import { type GroupNode, resolveColor } from '$lib/types/canvas';
 
 	// Props
 	let { node }: { node: GroupNode } = $props();
+
+	// Resolved color for the indicator
+	let nodeColor = $derived(resolveColor(node.color));
 
 	// Local state
 	let isEditing = $state(false);
@@ -32,7 +35,7 @@
 				const file = await loadFileFromOPFS(
 					canvasStore.activeCanvasId,
 					nodeId,
-					background
+					background!
 				);
 				if (cancelled) return;
 				if (file) {
@@ -121,6 +124,9 @@
 
 	<!-- Label positioned outside, above the group -->
 	<div class="group-label" ondblclick={handleLabelDblClick}>
+		{#if nodeColor}
+			<span class="color-indicator" style:background-color={nodeColor}></span>
+		{/if}
 		{#if isEditing}
 			<input
 				type="text"
@@ -184,6 +190,13 @@
 		cursor: text;
 		user-select: none;
 		z-index: 1;
+	}
+
+	.color-indicator {
+		width: 14px;
+		height: 14px;
+		flex-shrink: 0;
+		border-radius: var(--radius-sm);
 	}
 
 	.label-text {

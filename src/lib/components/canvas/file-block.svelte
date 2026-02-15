@@ -204,7 +204,7 @@
 		justify-content: space-between;
 		gap: var(--space-2);
 		padding: var(--space-1) var(--space-2);
-		background: var(--bg-canvas);
+		background: var(--bg-surface);
 	}
 
 	.file-icon-large {

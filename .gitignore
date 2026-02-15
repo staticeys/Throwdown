@@ -30,3 +30,6 @@ Documents/
 
 # Claude Code
 .claude/
+
+# Dev sandbox
+src/routes/sandbox/

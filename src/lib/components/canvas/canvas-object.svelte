@@ -243,7 +243,7 @@
 	.canvas-object {
 		position: absolute;
 		background-color: var(--bg-surface);
-		border: 1px solid var(--node-border-color, var(--border));
+		border: 0.5px solid var(--border);
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-md);
 		cursor: grab;
@@ -258,20 +258,18 @@
 		box-shadow: var(--shadow-lg);
 	}
 
-	/* Node with color - tinted background and colored border */
-	.canvas-object.has-color {
-		border-color: var(--node-color);
-		background-color: color-mix(in srgb, var(--node-color) 12%, var(--bg-surface));
+	/* Node with color - tinted background (not groups) */
+	.canvas-object.has-color:not(.is-group) {
+		background-color: color-mix(in srgb, var(--node-color) 18%, var(--bg-surface));
 	}
 
 	.canvas-object.selected {
-		border-color: var(--selection);
 		box-shadow: var(--shadow-lg), 0 0 0 2px var(--selection-bg);
 	}
 
-	/* Colored node when selected - keep the tint, use selection border */
-	.canvas-object.selected.has-color {
-		background-color: color-mix(in srgb, var(--node-color) 12%, var(--bg-surface));
+	/* Colored node when selected - keep the tint (not groups) */
+	.canvas-object.selected.has-color:not(.is-group) {
+		background-color: color-mix(in srgb, var(--node-color) 18%, var(--bg-surface));
 	}
 
 	.canvas-object:active {
@@ -332,12 +330,10 @@
 		transform: rotate(0deg);
 	}
 
-	/* Group node styles - transparent frame */
+	/* Group node styles - solid outline, no fill */
 	.canvas-object.is-group {
 		background-color: transparent;
-		border-style: dashed;
-		border-width: 2px;
-		border-color: var(--border-strong);
+		border: 1.5px solid var(--border-strong);
 		box-shadow: none;
 		pointer-events: none; /* Allow clicks to pass through to nodes below */
 		z-index: 0; /* Below edge layer (z-index: 1) so edges through groups stay interactive */
@@ -349,13 +345,11 @@
 	}
 
 	.canvas-object.is-group.has-color {
-		background-color: color-mix(in srgb, var(--node-color) 5%, transparent);
 		border-color: var(--node-color);
 	}
 
 	.canvas-object.is-group.selected {
 		border-color: var(--selection);
-		border-style: dashed;
 	}
 
 	/* Group frame - captures clicks on the border area */
