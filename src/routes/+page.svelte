@@ -700,9 +700,6 @@
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<svelte:head>
-	<title>Canvas App</title>
-</svelte:head>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="app-container">
