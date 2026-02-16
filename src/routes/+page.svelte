@@ -457,6 +457,23 @@
 			},
 			{ label: '', icon: '', action: () => {}, separator: true },
 			{
+				label: 'Bring to Front',
+				icon: '⤒',
+				action: () => {
+					if (nodeId) canvasStore.bringToFront(nodeId);
+				},
+				disabled: !nodeId || hasMultiple
+			},
+			{
+				label: 'Send to Back',
+				icon: '⤓',
+				action: () => {
+					if (nodeId) canvasStore.sendToBack(nodeId);
+				},
+				disabled: !nodeId || hasMultiple
+			},
+			{ label: '', icon: '', action: () => {}, separator: true },
+			{
 				label: 'Color',
 				icon: '',
 				action: () => {},

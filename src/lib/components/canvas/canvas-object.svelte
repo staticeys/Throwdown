@@ -53,6 +53,11 @@
 			canvasStore.selectOnly(node.id);
 		}
 
+		// Bring clicked node to front of its visual stack (skip for multi-select toggles)
+		if (!multiSelect) {
+			canvasStore.bringToFront(node.id);
+		}
+
 		// Start drag
 		isDragging = true;
 		canvasStore.beginTransaction();
@@ -244,9 +249,9 @@
 	.canvas-object {
 		position: absolute;
 		background-color: var(--bg-surface);
-		border: 0.5px solid var(--border);
+		border: 0px none;
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-md);
+		box-shadow: 0 4px 6px 0px rgba(0, 0, 0, 0.12);
 		cursor: grab;
 		transition: box-shadow var(--transition-fast);
 		/* overflow controlled via inline style - hidden when not selected, visible when selected */
@@ -256,7 +261,7 @@
 	}
 
 	.canvas-object:hover {
-		box-shadow: var(--shadow-lg);
+		box-shadow: 0 8px 10px 1px rgba(0, 0, 0, 0.14);
 	}
 
 	/* Node with color - left border accent (not groups) */
@@ -265,7 +270,7 @@
 	}
 
 	.canvas-object.selected {
-		box-shadow: var(--shadow-lg), 0 0 0 2px var(--selection-bg);
+		box-shadow: 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 0 0 2px var(--selection-bg);
 	}
 
 	.canvas-object:active {

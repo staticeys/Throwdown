@@ -831,6 +831,30 @@ class CanvasStore {
 	setEditingText(editing: boolean): void {
 		this.isEditingText = editing;
 	}
+
+	// Z-order: bring node to front of its visual stack (end of array)
+	// No undo snapshot — z-order is a view concern
+	bringToFront(nodeId: string): void {
+		if (!this.activeCanvas) return;
+		const nodes = this.activeCanvas.nodes;
+		const index = nodes.findIndex(n => n.id === nodeId);
+		if (index === -1 || index === nodes.length - 1) return;
+		const [node] = nodes.splice(index, 1);
+		nodes.push(node);
+		this.triggerSave();
+	}
+
+	// Z-order: send node to back of its visual stack (start of array)
+	// No undo snapshot — z-order is a view concern
+	sendToBack(nodeId: string): void {
+		if (!this.activeCanvas) return;
+		const nodes = this.activeCanvas.nodes;
+		const index = nodes.findIndex(n => n.id === nodeId);
+		if (index === -1 || index === 0) return;
+		const [node] = nodes.splice(index, 1);
+		nodes.unshift(node);
+		this.triggerSave();
+	}
 }
 
 // Export singleton instance
