@@ -259,19 +259,13 @@
 		box-shadow: var(--shadow-lg);
 	}
 
-	/* Node with color - tinted background and matching border (not groups) */
+	/* Node with color - left border accent (not groups) */
 	.canvas-object.has-color:not(.is-group) {
-		background-color: color-mix(in srgb, var(--node-color) 45%, var(--bg-surface));
-		border-color: var(--node-color);
+		border-left: 4px solid var(--node-color);
 	}
 
 	.canvas-object.selected {
 		box-shadow: var(--shadow-lg), 0 0 0 2px var(--selection-bg);
-	}
-
-	/* Colored node when selected - keep tint (not groups) */
-	.canvas-object.selected.has-color:not(.is-group) {
-		background-color: color-mix(in srgb, var(--node-color) 45%, var(--bg-surface));
 	}
 
 	.canvas-object:active {
