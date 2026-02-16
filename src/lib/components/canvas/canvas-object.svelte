@@ -38,6 +38,7 @@
 		// Only handle left click
 		if (e.button !== 0) return;
 
+		(document.activeElement as HTMLElement)?.blur?.(); // Exit any active text editing
 		e.preventDefault(); // Prevent text selection
 		e.stopPropagation();
 

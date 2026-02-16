@@ -7,7 +7,7 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<title>Canvas</title>
+	<title>⌞Td⌝ Throwdown</title>
 </svelte:head>
 
 {@render children()}

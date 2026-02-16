@@ -694,6 +694,7 @@
 	{:else}
 		<!-- Header -->
 		<header class="app-header">
+			<span class="app-logo">⌞Td⌝</span>
 			<button
 				class="header-btn"
 				onclick={() => canvasStore.createNewCanvas('Untitled')}
@@ -858,6 +859,15 @@
 		padding: 0 var(--space-2);
 		background-color: var(--bg-app);
 		border-bottom: 1px solid var(--border);
+	}
+
+	.app-logo {
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		color: var(--text-secondary);
+		white-space: nowrap;
+		user-select: none;
+		letter-spacing: 0.02em;
 	}
 
 	.app-header :global(.canvas-tabs) {
