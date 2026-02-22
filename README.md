@@ -32,6 +32,10 @@ Files are stored locally in your browser using the [Origin Private File System](
 - **Persistent Storage** is requested automatically to reduce the chance of the browser clearing your data
 - **Export as ZIP** to back up a canvas with all its files, or share it with someone else
 
+## Install as App
+
+Throwdown is a Progressive Web App — you can install it for offline use and a standalone window experience. In **Chrome**, click the install icon in the address bar. In **Safari** on macOS, go to File > Add to Dock. The app works fully offline since all data is stored locally.
+
 ## Security
 
 - Runs entirely client-side — no server, no accounts, no tracking
