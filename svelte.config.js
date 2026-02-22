@@ -14,6 +14,9 @@ const config = {
 		},
 		prerender: {
 			entries: ['/']
+		},
+		serviceWorker: {
+			register: false
 		}
 	}
 };
