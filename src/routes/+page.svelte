@@ -709,6 +709,7 @@
 		<!-- Header -->
 		<header class="app-header">
 			<span class="app-logo">⌞Td⌝</span>
+			<div class="header-divider"></div>
 			<button
 				class="header-btn"
 				onclick={() => canvasStore.createNewCanvas('Untitled')}
@@ -882,6 +883,14 @@
 		white-space: nowrap;
 		user-select: none;
 		letter-spacing: 0.02em;
+	}
+
+	.header-divider {
+		width: 1px;
+		height: 16px;
+		background: var(--border);
+		flex-shrink: 0;
+		margin: 0 var(--space-1);
 	}
 
 	.app-header :global(.canvas-tabs) {
