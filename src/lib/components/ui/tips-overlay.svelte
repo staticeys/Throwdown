@@ -33,19 +33,21 @@
 			case 'none':
 				return [
 					{ text: 'Double-click to create text node' },
-					{ text: 'Right-click for link/group nodes' },
+					{ text: 'Right-click for link/group/file nodes' },
 					{ text: canvasStore.inputMode === 'trackpad'
 						? 'Scroll to pan, pinch to zoom'
 						: 'Scroll to zoom, right-drag to pan' },
 					{ text: 'Drag empty space to box select' },
-					{ text: `${modKey}+V to paste text node` }
+					{ text: `${modKey}+V to paste URL or text` },
+					{ text: 'Drag files onto canvas to add file nodes' }
 				];
 			case 'single':
 				return [
+					{ text: 'Double-click to edit' },
+					{ text: 'Right-click a node for node features' },
 					{ text: 'Backspace to delete' },
 					{ text: `${modKey}+click to multi-select` },
 					{ text: 'Drag corner to resize' },
-					{ text: `${modKey}+C to copy contents` },
 					{ text: '1-6 to set color, 0 to clear' }
 				];
 			case 'multi':
@@ -55,7 +57,10 @@
 					{ text: '1-6 to set color, 0 to clear' }
 				];
 			case 'editing':
-				return [{ text: 'Format with Markdown (see ? for help)' }];
+				return [
+					{ text: 'Format with Markdown (see ? for help)' },
+					{ text: 'Write inline #tags to tag and filter nodes' }
+				];
 			default:
 				return [];
 		}
