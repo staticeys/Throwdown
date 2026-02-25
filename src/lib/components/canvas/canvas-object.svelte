@@ -288,6 +288,11 @@
 		overflow: hidden;
 	}
 
+	/* Block iframe interaction so mouse events pass through to canvas (drag, zoom, select) */
+	.object-content :global(iframe) {
+		pointer-events: none;
+	}
+
 	.selection-indicator {
 		position: absolute;
 		inset: -2px;

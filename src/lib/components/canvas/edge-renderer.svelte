@@ -291,7 +291,7 @@
 		background: var(--bg-canvas);
 		border-radius: var(--radius-sm);
 		font-family: var(--font-sans);
-		font-size: 11px;
+		font-size: var(--font-size-sm);
 		color: var(--text-secondary);
 		white-space: nowrap;
 		max-width: 200px;
@@ -310,7 +310,7 @@
 		display: block;
 		padding: 1px var(--space-1);
 		font-family: var(--font-sans);
-		font-size: 11px;
+		font-size: var(--font-size-sm);
 		text-align: center;
 		color: var(--text-secondary);
 		background: var(--bg-canvas);

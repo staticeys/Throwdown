@@ -11,7 +11,6 @@
 	let objectUrl = $state<string | null>(null);
 	let loadError = $state(false);
 	let isLoading = $state(true);
-
 	// Derived
 	let fileType = $derived(getFileType(node.mimeType));
 	let formattedSize = $derived(formatBytes(node.size));
@@ -96,6 +95,7 @@
 		if (!objectUrl) return;
 		window.open(objectUrl, '_blank', 'noopener,noreferrer');
 	}
+
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -135,15 +135,20 @@
 			<div class="file-meta">{formattedSize}</div>
 			<audio src={objectUrl} controls class="audio-player"></audio>
 		</div>
+	{:else if fileType === 'pdf' && objectUrl}
+		<div class="file-preview">
+			<iframe src={objectUrl} title={node.filename} class="preview-pdf"></iframe>
+			<div class="file-info">
+				<span class="file-name" title={node.filename}>{node.filename}</span>
+				<span class="file-meta">{formattedSize}</span>
+			</div>
+		</div>
 	{:else}
 		<div class="file-placeholder">
 			<div class="file-icon-large">{getFileIcon(fileType)}</div>
 			<div class="file-name" title={node.filename}>{node.filename}</div>
 			<div class="file-meta">{formattedSize}</div>
 			<div class="file-actions">
-				{#if fileType === 'pdf'}
-					<button class="file-btn" onclick={openFile} title="Open">Open</button>
-				{/if}
 				<button class="file-btn" onclick={downloadFile} title="Download">Download</button>
 			</div>
 		</div>
@@ -190,6 +195,13 @@
 		width: 100%;
 		min-height: 0;
 		background: var(--bg-canvas);
+	}
+
+	.preview-pdf {
+		flex: 1;
+		width: 100%;
+		min-height: 0;
+		border: none;
 	}
 
 	.audio-player {

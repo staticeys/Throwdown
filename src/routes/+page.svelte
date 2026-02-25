@@ -243,6 +243,23 @@
 			}
 		];
 
+		// Add "Open" option for file nodes
+		if (node && isFileNode(node) && !hasMultiple) {
+			menuItems.push({
+				label: 'Open',
+				icon: icons.export,
+				action: async () => {
+					if (!nodeId || !node || !isFileNode(node)) return;
+					const { loadFileFromOPFS } = await import('$lib/platform/fs-opfs');
+					const file = await loadFileFromOPFS(canvasStore.activeCanvasId, nodeId, node.filename);
+					if (file) {
+						const url = URL.createObjectURL(file);
+						window.open(url, '_blank', 'noopener,noreferrer');
+					}
+				}
+			});
+		}
+
 		// Add "Clean Tracking" option for link nodes
 		if (isLink && !hasMultiple) {
 			menuItems.push({
